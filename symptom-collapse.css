@@ -60,3 +60,62 @@
   .pwa-star-btn { font-size: 14px; padding: 0 3px; opacity: .55; }
   .symptom-group-title { font-size: 14px; }
 }
+/* ============ 辨证结果折叠 ============ */
+#pwaResultControlBar {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 8px 0;
+  flex-wrap: wrap;
+}
+
+.pwa-result-group {
+  margin-bottom: 12px;
+}
+
+.pwa-result-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  font-size: 13.5px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  transition: filter .15s;
+}
+
+.pwa-result-group-header:hover { filter: brightness(.96); }
+
+.pwa-result-group.pwa-result-high   .pwa-result-group-header { background: #e6f7ed; color: #166534; border: 1px solid #86efac; }
+.pwa-result-group.pwa-result-medium .pwa-result-group-header { background: #fef5e7; color: #8a6d3b; border: 1px solid #f5cba7; }
+.pwa-result-group.pwa-result-low    .pwa-result-group-header { background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
+
+.pwa-result-group-title { display: flex; align-items: center; gap: 6px; }
+.pwa-result-group-count {
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, .7);
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+
+.pwa-result-group-arrow {
+  font-size: 11px;
+  opacity: .65;
+  transition: transform .2s;
+}
+
+.pwa-result-group.pwa-result-collapsed .pwa-result-group-arrow {
+  transform: rotate(-90deg);
+}
+
+.pwa-result-group-body {
+  overflow: hidden;
+}
+
+.pwa-result-group.pwa-result-collapsed .pwa-result-group-body {
+  display: none;
+}

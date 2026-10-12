@@ -262,6 +262,8 @@
       sortStarredFirst();
       bindSearchInput();
       hookFunctions();
+      hookDisplayResults();
+      watchResultArea();
     } catch (e) {
       console.warn('[pwa-symptom] init error:', e);
     } finally {
@@ -274,4 +276,189 @@
   } else {
     setTimeout(init, 200);
   }
+  /* ============================================
+   * 辨证结果折叠增强
+   * ============================================ */
+
+  var RESULT_COLLAPSE_KEY = 'pwa_result_collapse_state';
+
+  function getResultLevelMap() {
+    try {
+      var m = JSON.parse(localStorage.getItem(RESULT_COLLAPSE_KEY) || '{}');
+      return (m && typeof m === 'object') ? m : {};
+    } catch (e) { return {}; }
+  }
+
+  function setResultLevelMap(m) {
+    try { localStorage.setItem(RESULT_COLLAPSE_KEY, JSON.stringify(m)); } catch (e) {}
+  }
+
+  /* 按置信度分档：
+   *   high   >= 80%
+   *   medium 50% ~ 79%
+   *   low     < 50%
+   */
+  function getLevel(item) {
+    var confEl = item.querySelector('.confidence');
+    var txt = confEl ? confEl.textContent : '';
+    var m = txt.match(/(\d+)\s*%/);
+    if (!m) return 'low';
+    var pct = parseInt(m[1], 10);
+    if (pct >= 80) return 'high';
+    if (pct >= 50) return 'medium';
+    return 'low';
+  }
+
+  function enhanceResults() {
+    var area = document.getElementById('resultArea');
+    if (!area) return;
+
+    var items = Array.prototype.slice.call(area.querySelectorAll('.result-item'));
+    if (items.length === 0) return;
+
+    /* 已经包过就不再处理 */
+    if (area.dataset.pwaResultWrapped === '1') {
+      /* 但结果可能更新了（items 变了），需重新分配分组 */
+      var groups = area.querySelectorAll('.pwa-result-group');
+      var itemCount = 0;
+      groups.forEach(function (g) {
+        itemCount += g.querySelectorAll('.result-item').length;
+      });
+      if (itemCount === items.length) return;
+    }
+
+    /* 清空旧的分组结构，把 result-item 重新拿出来 */
+    var existingGroups = area.querySelectorAll('.pwa-result-group');
+    existingGroups.forEach(function (g) {
+      var its = Array.prototype.slice.call(g.querySelectorAll('.result-item'));
+      its.forEach(function (it) { area.insertBefore(it, g); });
+      g.remove();
+    });
+
+    var empty = area.querySelector('.empty-state');
+    if (empty) empty.style.display = 'none';
+
+    items = Array.prototype.slice.call(area.querySelectorAll('.result-item'));
+    if (items.length === 0) return;
+
+    /* 按 level 分组 */
+    var buckets = { high: [], medium: [], low: [] };
+    items.forEach(function (it) {
+      var lv = getLevel(it);
+      it.dataset.pwaResultLevel = lv;
+      buckets[lv].push(it);
+    });
+
+    var levelMeta = {
+      high:   { title: '🟢 高度推荐（置信度 ≥ 80%）', cls: 'pwa-result-high' },
+      medium: { title: '🟠 可能推荐（50% ~ 79%）',      cls: 'pwa-result-medium' },
+      low:    { title: '⚪ 参考（< 50%）',                cls: 'pwa-result-low' }
+    };
+
+    var levelMap = getResultLevelMap();
+
+    ['high', 'medium', 'low'].forEach(function (lv) {
+      var arr = buckets[lv];
+      if (arr.length === 0) return;
+
+      var group = document.createElement('div');
+      group.className = 'pwa-result-group ' + levelMeta[lv].cls;
+      group.dataset.pwaLevel = lv;
+
+      var header = document.createElement('div');
+      header.className = 'pwa-result-group-header';
+      header.innerHTML =
+        '<span class="pwa-result-group-title">' + levelMeta[lv].title +
+        '<span class="pwa-result-group-count">' + arr.length + ' 项</span></span>' +
+        '<span class="pwa-result-group-arrow">▼</span>';
+
+      var body = document.createElement('div');
+      body.className = 'pwa-result-group-body';
+
+      /* 默认状态：记住用户上次选择，high 默认展开，其它默认折叠 */
+      var lastState = levelMap[lv];
+      var isCollapsed = (lastState === undefined)
+        ? (lv !== 'high')      /* 首次：high 展开、medium/low 折叠 */
+        : (lastState === 0);
+
+      if (isCollapsed) group.classList.add('pwa-result-collapsed');
+
+      /* 移动 item 进 body */
+      arr.forEach(function (it) { body.appendChild(it); });
+
+      group.appendChild(header);
+      group.appendChild(body);
+
+      header.addEventListener('click', function () {
+        group.classList.toggle('pwa-result-collapsed');
+        var m = getResultLevelMap();
+        m[lv] = group.classList.contains('pwa-result-collapsed') ? 0 : 1;
+        setResultLevelMap(m);
+      });
+
+      area.appendChild(group);
+    });
+
+    area.dataset.pwaResultWrapped = '1';
+    addResultControlBar(area);
+  }
+
+  function addResultControlBar(area) {
+    /* 移除旧的 */
+    var old = document.getElementById('pwaResultControlBar');
+    if (old) old.remove();
+
+    var bar = document.createElement('div');
+    bar.id = 'pwaResultControlBar';
+    bar.innerHTML =
+      '<button type="button" class="btn btn-secondary btn-sm" data-act="expand">▽ 展开全部</button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-act="collapse">△ 收起全部</button>';
+
+    /* 插到 resultArea 前面 */
+    area.parentNode.insertBefore(bar, area);
+
+    bar.querySelector('[data-act="expand"]').onclick = function () {
+      document.querySelectorAll('.pwa-result-group').forEach(function (g) {
+        g.classList.remove('pwa-result-collapsed');
+      });
+      var m = getResultLevelMap();
+      m.high = 1; m.medium = 1; m.low = 1;
+      setResultLevelMap(m);
+    };
+    bar.querySelector('[data-act="collapse"]').onclick = function () {
+      document.querySelectorAll('.pwa-result-group').forEach(function (g) {
+        g.classList.add('pwa-result-collapsed');
+      });
+      var m = getResultLevelMap();
+      m.high = 0; m.medium = 0; m.low = 0;
+      setResultLevelMap(m);
+    };
+  }
+
+  /* hook 原系统的 displayResults */
+  function hookDisplayResults() {
+    var orig = window.displayResults;
+    if (typeof orig === 'function' && !orig._pwaResultHooked) {
+      window.displayResults = function () {
+        var r = orig.apply(this, arguments);
+        setTimeout(enhanceResults, 60);
+        return r;
+      };
+      window.displayResults._pwaResultHooked = true;
+    }
+    /* 首次也可能已有结果 */
+    setTimeout(enhanceResults, 500);
+  }
+
+  /* 观察 resultArea 变化（防止其它入口直接改 DOM） */
+  function watchResultArea() {
+    var area = document.getElementById('resultArea');
+    if (!area || area.dataset.pwaResultObserver === '1') return;
+    area.dataset.pwaResultObserver = '1';
+    var ob = new MutationObserver(function () {
+      enhanceResults();
+    });
+    ob.observe(area, { childList: true });
+  }
+
 })();

@@ -1,4 +1,9 @@
-/* 中医诊疗系统 · 移动端适配 */
+/* ================================================================
+ * 中医诊疗系统 · 移动端适配 v2
+ * 包含：布局适配 / 患者信息 / 大字体兼容 / 辨证结果折叠
+ * ================================================================ */
+
+/* ============ 全局布局（原版保留） ============ */
 @media (max-width: 820px) {
   body { padding: 6px !important; height: auto !important; overflow: auto !important; }
   .app { height: auto !important; min-height: 100vh; gap: 8px; }
@@ -19,12 +24,12 @@
   .card-header { font-size: 15px; }
   .btn { padding: 6px 14px; font-size: 13px; }
   .btn-sm { padding: 4px 10px; font-size: 12px; }
-  .patient-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
-  .patient-grid .field label { min-width: 42px; font-size: 12px; }
+
   .symptom-tag .tag-parent,
   .symptom-tag .tag-modifier,
   .symptom-tag .tag-standalone { padding: 4px 11px; font-size: 12.5px; }
   .tag-wrap .tag-del-btn { display: inline-block !important; opacity: .4; }
+
   .modal-box {
     width: 96vw !important; max-height: 92vh !important;
     position: fixed !important; top: 50% !important; left: 50% !important;
@@ -32,27 +37,29 @@
     padding: 14px !important;
   }
   .modal-header { cursor: default !important; }
+
   .sticky-buttons {
     position: sticky !important; bottom: 0; background: #fff;
     box-shadow: 0 -2px 10px rgba(0,0,0,.06);
     z-index: 10; padding: 8px 4px;
   }
+
   .ai-stream { max-height: 55vh !important; min-height: 240px !important; }
   .rx-title { font-size: 20px; letter-spacing: 6px; }
   .prescription-drug-item { margin-right: 2ch !important; }
   #symptomDataWarning { font-size: 12.5px; padding: 8px 12px; }
 }
-@media (hover: none) {
-  .symptom-tag:hover { transform: none !important; }
-  .herb-selectable:hover { border-color: transparent !important; background: inherit !important; }
-}
-/* ============ 患者信息表单：手机端改为标签在上、输入在下 ============ */
+
+/* ============ 患者信息表单：手机端彻底修复（兼容大字体）============ */
 @media (max-width: 820px) {
-  /* 患者信息网格：单列，每个字段块状堆叠 */
   .patient-grid {
-    grid-template-columns: 1fr !important;
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
     gap: 10px !important;
     padding: 12px !important;
+    overflow: visible !important;
+    max-height: none !important;
   }
 
   .patient-grid .field {
@@ -60,27 +67,195 @@
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 4px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .patient-grid .field label {
+    display: block !important;
+    width: auto !important;
     min-width: 0 !important;
-    font-size: 12.5px !important;
-    color: #2c4b6a;
-    font-weight: 600;
+    max-width: 100% !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #2c4b6a !important;
+    white-space: normal !important;
+    word-break: break-all;
   }
 
   .patient-grid .field input,
   .patient-grid .field select {
+    display: block !important;
     width: 100% !important;
+    max-width: 100% !important;
     min-width: 0 !important;
     font-size: 14px !important;
     padding: 8px 10px !important;
     box-sizing: border-box !important;
   }
 
-  /* 日期/时间选择框也保持一致 */
   .patient-grid .field input[type="date"],
   .patient-grid .field input[type="datetime-local"] {
     font-size: 13px !important;
   }
+}
+
+/* ============ 大字体兼容：全局防溢出 ============ */
+@media (max-width: 820px) {
+  .card, .card * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .symptom-grid {
+    flex-wrap: wrap !important;
+  }
+
+  .sticky-buttons,
+  .symptom-search-row,
+  .search-row {
+    flex-wrap: wrap !important;
+  }
+
+  .sticky-buttons > * {
+    flex-shrink: 0;
+  }
+
+  .result-item .detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .prescription-drug-list {
+    display: block !important;
+    white-space: normal !important;
+  }
+
+  .prescription-drug-item {
+    display: inline-block !important;
+    white-space: nowrap !important;
+    margin-right: 2ch !important;
+    margin-bottom: 4px;
+  }
+}
+
+/* ============ 非触摸设备：禁用 hover 抖动 ============ */
+@media (hover: none) {
+  .symptom-tag:hover { transform: none !important; }
+  .herb-selectable:hover { border-color: transparent !important; background: inherit !important; }
+}
+
+/* ================================================================
+ * 以下样式由 symptom-collapse.js 使用
+ * ================================================================ */
+
+/* 星标按钮 */
+.pwa-star-btn {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: .45;
+  transition: opacity .15s, transform .15s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  vertical-align: middle;
+  line-height: 1;
+}
+.pwa-star-btn:hover { opacity: 1; transform: scale(1.15); }
+.pwa-star-btn.pwa-starred { opacity: 1; }
+.symptom-tag.pwa-starred-item .tag-parent,
+.symptom-tag.pwa-starred-item .tag-modifier,
+.symptom-tag.pwa-starred-item .tag-standalone {
+  box-shadow: inset 0 -2px 0 0 rgba(245, 158, 11, .55);
+}
+
+/* 症状分组折叠 */
+.symptom-group .pwa-group-body { overflow: hidden; }
+.symptom-group.pwa-collapsed .pwa-group-body { display: none; }
+.symptom-group-title {
+  position: relative;
+  padding-right: 34px !important;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.symptom-group-title::after {
+  content: '▼';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: #2c4b6a;
+  opacity: .6;
+  transition: transform .2s;
+}
+.symptom-group.pwa-collapsed .symptom-group-title::after {
+  transform: translateY(-50%) rotate(-90deg);
+}
+
+/* 折叠控制栏 */
+#pwaCollapseBar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+/* 搜索过滤 */
+.pwa-hidden { display: none !important; }
+
+/* ============ 辨证结果折叠 ============ */
+#pwaResultControlBar {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 8px 0;
+  flex-wrap: wrap;
+}
+
+.pwa-result-group {
+  margin-bottom: 12px;
+}
+
+.pwa-result-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  font-size: 13.5px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  transition: filter .15s;
+}
+.pwa-result-group-header:hover { filter: brightness(.96); }
+
+.pwa-result-group.pwa-result-high   .pwa-result-group-header { background: #e6f7ed; color: #166534; border: 1px solid #86efac; }
+.pwa-result-group.pwa-result-medium .pwa-result-group-header { background: #fef5e7; color: #8a6d3b; border: 1px solid #f5cba7; }
+.pwa-result-group.pwa-result-low    .pwa-result-group-header { background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
+
+.pwa-result-group-title { display: flex; align-items: center; gap: 6px; }
+.pwa-result-group-count {
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, .7);
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+.pwa-result-group-arrow {
+  font-size: 11px;
+  opacity: .65;
+  transition: transform .2s;
+}
+.pwa-result-group.pwa-result-collapsed .pwa-result-group-arrow {
+  transform: rotate(-90deg);
+}
+.pwa-result-group-body { overflow: hidden; }
+.pwa-result-group.pwa-result-collapsed .pwa-result-group-body {
+  display: none;
 }

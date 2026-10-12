@@ -1,15 +1,21 @@
-/* 中医诊疗系统 · 症状折叠 + 搜索过滤 + 星标置顶 */
+/* 中医诊疗系统 · 症状折叠 + 搜索过滤 + 星标置顶 + 辨证结果折叠 */
 (function () {
   'use strict';
 
   var COLLAPSE_KEY = 'pwa_symptom_collapse_state';
   var STAR_KEY = 'pwa_starred_symptoms';
+  var RESULT_COLLAPSE_KEY = 'pwa_result_collapse_state';
 
+  /* =====================================================
+   * 工具函数
+   * ===================================================== */
   function getStars() {
     try { var a = JSON.parse(localStorage.getItem(STAR_KEY) || '[]'); return Array.isArray(a) ? a : []; }
     catch (e) { return []; }
   }
-  function setStars(arr) { try { localStorage.setItem(STAR_KEY, JSON.stringify(arr)); } catch (e) {} }
+  function setStars(arr) {
+    try { localStorage.setItem(STAR_KEY, JSON.stringify(arr)); } catch (e) {}
+  }
   function isStarred(label) { return getStars().indexOf(label) >= 0; }
   function toggleStar(label) {
     var arr = getStars(); var i = arr.indexOf(label);
@@ -17,7 +23,9 @@
     setStars(arr); return i < 0;
   }
 
-  /* ---------- 折叠 ---------- */
+  /* =====================================================
+   * 症状分组折叠
+   * ===================================================== */
   function applyCollapse() {
     var container = document.getElementById('symptomGroups');
     if (!container) return;
@@ -88,7 +96,9 @@
     };
   }
 
-  /* ---------- 搜索过滤 ---------- */
+  /* =====================================================
+   * 搜索过滤
+   * ===================================================== */
   function filterBySearch(kw) {
     var container = document.getElementById('symptomGroups');
     if (!container) return;
@@ -167,7 +177,9 @@
     });
   }
 
-  /* ---------- 星标 ---------- */
+  /* =====================================================
+   * 星标
+   * ===================================================== */
   function addStarButtons() {
     document.querySelectorAll('.symptom-tag').forEach(function (t) {
       if (t.dataset.pwaStarAdded === '1') return;
@@ -221,67 +233,9 @@
     });
   }
 
-  /* ---------- Hook 原系统 ---------- */
-  function hookFunctions() {
-    var origClear = window.clearSymptomSearch;
-    if (typeof origClear === 'function' && !origClear._pwaHooked) {
-      window.clearSymptomSearch = function () {
-        if (origClear) origClear.apply(this, arguments);
-        filterBySearch('');
-      };
-      window.clearSymptomSearch._pwaHooked = true;
-    }
-    var origRender = window.renderSymptoms;
-    if (typeof origRender === 'function' && !origRender._pwaHooked) {
-      window.renderSymptoms = function () {
-        if (origRender) origRender.apply(this, arguments);
-        setTimeout(init, 60);
-      };
-      window.renderSymptoms._pwaHooked = true;
-    }
-  }
-
-  function bindSearchInput() {
-    var input = document.getElementById('symptomSearchInput');
-    if (!input || input.dataset.pwaFilterHooked === '1') return;
-    input.dataset.pwaFilterHooked = '1';
-    input.addEventListener('input', function () { filterBySearch(this.value); });
-    input.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') setTimeout(function () { filterBySearch(''); }, 0);
-    });
-  }
-
-  var _initLock = false;
-  function init() {
-    if (_initLock) return;
-    _initLock = true;
-    try {
-      applyCollapse();
-      addStarButtons();
-      updateStarredMarks();
-      sortStarredFirst();
-      bindSearchInput();
-      hookFunctions();
-      hookDisplayResults();
-      watchResultArea();
-    } catch (e) {
-      console.warn('[pwa-symptom] init error:', e);
-    } finally {
-      setTimeout(function () { _initLock = false; }, 120);
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(init, 200); });
-  } else {
-    setTimeout(init, 200);
-  }
-  /* ============================================
-   * 辨证结果折叠增强
-   * ============================================ */
-
-  var RESULT_COLLAPSE_KEY = 'pwa_result_collapse_state';
-
+  /* =====================================================
+   * 辨证结果折叠
+   * ===================================================== */
   function getResultLevelMap() {
     try {
       var m = JSON.parse(localStorage.getItem(RESULT_COLLAPSE_KEY) || '{}');
@@ -293,11 +247,6 @@
     try { localStorage.setItem(RESULT_COLLAPSE_KEY, JSON.stringify(m)); } catch (e) {}
   }
 
-  /* 按置信度分档：
-   *   high   >= 80%
-   *   medium 50% ~ 79%
-   *   low     < 50%
-   */
   function getLevel(item) {
     var confEl = item.querySelector('.confidence');
     var txt = confEl ? confEl.textContent : '';
@@ -316,18 +265,13 @@
     var items = Array.prototype.slice.call(area.querySelectorAll('.result-item'));
     if (items.length === 0) return;
 
-    /* 已经包过就不再处理 */
     if (area.dataset.pwaResultWrapped === '1') {
-      /* 但结果可能更新了（items 变了），需重新分配分组 */
       var groups = area.querySelectorAll('.pwa-result-group');
       var itemCount = 0;
-      groups.forEach(function (g) {
-        itemCount += g.querySelectorAll('.result-item').length;
-      });
+      groups.forEach(function (g) { itemCount += g.querySelectorAll('.result-item').length; });
       if (itemCount === items.length) return;
     }
 
-    /* 清空旧的分组结构，把 result-item 重新拿出来 */
     var existingGroups = area.querySelectorAll('.pwa-result-group');
     existingGroups.forEach(function (g) {
       var its = Array.prototype.slice.call(g.querySelectorAll('.result-item'));
@@ -341,7 +285,6 @@
     items = Array.prototype.slice.call(area.querySelectorAll('.result-item'));
     if (items.length === 0) return;
 
-    /* 按 level 分组 */
     var buckets = { high: [], medium: [], low: [] };
     items.forEach(function (it) {
       var lv = getLevel(it);
@@ -375,15 +318,13 @@
       var body = document.createElement('div');
       body.className = 'pwa-result-group-body';
 
-      /* 默认状态：记住用户上次选择，high 默认展开，其它默认折叠 */
       var lastState = levelMap[lv];
       var isCollapsed = (lastState === undefined)
-        ? (lv !== 'high')      /* 首次：high 展开、medium/low 折叠 */
+        ? (lv !== 'high')
         : (lastState === 0);
 
       if (isCollapsed) group.classList.add('pwa-result-collapsed');
 
-      /* 移动 item 进 body */
       arr.forEach(function (it) { body.appendChild(it); });
 
       group.appendChild(header);
@@ -404,7 +345,6 @@
   }
 
   function addResultControlBar(area) {
-    /* 移除旧的 */
     var old = document.getElementById('pwaResultControlBar');
     if (old) old.remove();
 
@@ -414,7 +354,6 @@
       '<button type="button" class="btn btn-secondary btn-sm" data-act="expand">▽ 展开全部</button>' +
       '<button type="button" class="btn btn-secondary btn-sm" data-act="collapse">△ 收起全部</button>';
 
-    /* 插到 resultArea 前面 */
     area.parentNode.insertBefore(bar, area);
 
     bar.querySelector('[data-act="expand"]').onclick = function () {
@@ -435,22 +374,24 @@
     };
   }
 
-  /* hook 原系统的 displayResults */
   function hookDisplayResults() {
     var orig = window.displayResults;
     if (typeof orig === 'function' && !orig._pwaResultHooked) {
       window.displayResults = function () {
         var r = orig.apply(this, arguments);
-        setTimeout(enhanceResults, 60);
+        setTimeout(enhanceResults, 80);
         return r;
       };
       window.displayResults._pwaResultHooked = true;
+      console.log('[pwa-symptom] displayResults hooked');
+    } else if (typeof orig !== 'function') {
+      /* displayResults 还没定义，稍后重试 */
+      setTimeout(hookDisplayResults, 300);
     }
     /* 首次也可能已有结果 */
     setTimeout(enhanceResults, 500);
   }
 
-  /* 观察 resultArea 变化（防止其它入口直接改 DOM） */
   function watchResultArea() {
     var area = document.getElementById('resultArea');
     if (!area || area.dataset.pwaResultObserver === '1') return;
@@ -460,5 +401,72 @@
     });
     ob.observe(area, { childList: true });
   }
+
+  /* =====================================================
+   * Hook 原系统函数
+   * ===================================================== */
+  function hookFunctions() {
+    var origClear = window.clearSymptomSearch;
+    if (typeof origClear === 'function' && !origClear._pwaHooked) {
+      window.clearSymptomSearch = function () {
+        if (origClear) origClear.apply(this, arguments);
+        filterBySearch('');
+      };
+      window.clearSymptomSearch._pwaHooked = true;
+    }
+    var origRender = window.renderSymptoms;
+    if (typeof origRender === 'function' && !origRender._pwaHooked) {
+      window.renderSymptoms = function () {
+        if (origRender) origRender.apply(this, arguments);
+        setTimeout(safeInit, 60);
+      };
+      window.renderSymptoms._pwaHooked = true;
+    }
+  }
+
+  function bindSearchInput() {
+    var input = document.getElementById('symptomSearchInput');
+    if (!input || input.dataset.pwaFilterHooked === '1') return;
+    input.dataset.pwaFilterHooked = '1';
+    input.addEventListener('input', function () { filterBySearch(this.value); });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') setTimeout(function () { filterBySearch(''); }, 0);
+    });
+  }
+
+  /* =====================================================
+   * 初始化（每个模块独立 try，互不影响）
+   * ===================================================== */
+  var _initLock = false;
+  function safeInit() {
+    if (_initLock) return;
+    _initLock = true;
+
+    try { applyCollapse(); } catch (e) { console.warn('[pwa] applyCollapse fail', e); }
+    try { addStarButtons(); } catch (e) { console.warn('[pwa] addStarButtons fail', e); }
+    try { updateStarredMarks(); } catch (e) { console.warn('[pwa] updateStarredMarks fail', e); }
+    try { sortStarredFirst(); } catch (e) { console.warn('[pwa] sortStarredFirst fail', e); }
+    try { bindSearchInput(); } catch (e) { console.warn('[pwa] bindSearchInput fail', e); }
+    try { hookFunctions(); } catch (e) { console.warn('[pwa] hookFunctions fail', e); }
+    try { hookDisplayResults(); } catch (e) { console.warn('[pwa] hookDisplayResults fail', e); }
+    try { watchResultArea(); } catch (e) { console.warn('[pwa] watchResultArea fail', e); }
+
+    console.log('[pwa-symptom] init done');
+
+    setTimeout(function () { _initLock = false; }, 120);
+  }
+
+  /* 兼容旧调用名 */
+  var init = safeInit;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(safeInit, 250); });
+  } else {
+    setTimeout(safeInit, 250);
+  }
+
+  /* 保险：再等 2 秒重试一次，防止主脚本加载慢 */
+  setTimeout(safeInit, 2000);
+  setTimeout(safeInit, 5000);
 
 })();

@@ -755,16 +755,63 @@ function parseCompoundLabel(rawLabel,defaultFirst,defaultSecond){
   });
   return results;
 }
-function splitSyndromeSymptoms(text){
-  if(!text)return [];
-  const parts=String(text).split(/[，,、；;\/／]+/).map(s=>s.trim()).filter(Boolean);
-  const result=[];
-  parts.forEach(p=>{
-    result.push(p);
-    const m=p.match(/^([^（(]+)[（(]([^）)]+)[）)]$/);
-    if(m){const before=m[1].trim(),inside=m[2].trim();if(before)result.push(before);if(inside)result.push(inside);}
+/* ============ 通用复合词拆词器：统一处理 <>、[]、() 三种语法 ============
+ *  X<Y,Z>  父症状X + 修饰词（必选）→ XY, XZ
+ *  X[Y,Z]  前提条件X + 主证（必选）→ XY, XZ
+ *  X(Y,Z)  主证X + 可能出现的Y,Z     → X, Y, Z
+ * ===================================================================== */
+function splitCompoundTerms(text){
+  if(!text) return [];
+  const result = [];
+  const str = String(text);
+  const parts = [];
+  let cur = '', depth = 0;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (ch === '<' || ch === '[' || ch === '（' || ch === '(') {
+      depth++; cur += ch;
+    } else if (ch === '>' || ch === ']' || ch === '）' || ch === ')') {
+      depth--; cur += ch;
+    } else if ((ch === ',' || ch === '，' || ch === '、' || ch === '；' || ch === ';' ||
+                ch === '/' || ch === '／') && depth === 0) {
+      if (cur.trim()) parts.push(cur.trim());
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur.trim()) parts.push(cur.trim());
+
+  parts.forEach(function(p){
+    p = p.trim();
+    if (!p) return;
+    const am = p.match(/^([^<>\[\]()（）]+?)\s*<([^<>]+)>\s*(.*)$/);
+    const bm = p.match(/^([^<>\[\]()（）]+?)\s*\[([^\[\]]+)\]\s*(.*)$/);
+    const cm = p.match(/^([^<>\[\]()（）]+?)\s*[（(]([^）)]+)[）)]\s*(.*)$/);
+    if (am && am[1].trim() && am[2].trim()) {
+      const head = am[1].trim(), inner = am[2].trim(), tail = (am[3] || '').trim();
+      inner.split(/[，,、；;\/／]+/).map(function(s){return s.trim();}).filter(Boolean).forEach(function(sub){ result.push(head + sub); });
+      tail.split(/[，,、；;\/／]+/).map(function(s){return s.trim();}).filter(Boolean).forEach(function(t){ result.push(t); });
+    } else if (bm && bm[1].trim() && bm[2].trim()) {
+      const head = bm[1].trim(), inner = bm[2].trim(), tail = (bm[3] || '').trim();
+      inner.split(/[，,、；;\/／]+/).map(function(s){return s.trim();}).filter(Boolean).forEach(function(sub){ result.push(head + sub); });
+      tail.split(/[，,、；;\/／]+/).map(function(s){return s.trim();}).filter(Boolean).forEach(function(t){ result.push(t); });
+    } else if (cm && cm[1].trim() && cm[2].trim()) {
+      result.push(cm[1].trim());
+      cm[2].split(/[，,、；;\/／]+/).map(function(s){return s.trim();}).filter(Boolean).forEach(function(sub){ result.push(sub); });
+      const tail = (cm[3] || '').trim();
+      tail.split(/[，,、；;\/／]+/).map(function(s){return s.trim();}).filter(Boolean).forEach(function(t){ result.push(t); });
+    } else {
+      const clean = p.replace(/[<>\[\]（）()]/g, '').trim();
+      if (clean) result.push(clean);
+    }
   });
-  return Array.from(new Set(result));
+  return Array.from(new Set(result.filter(Boolean)));
+}
+
+/* 兼容旧调用名 */
+function splitSyndromeSymptoms(text){
+  return splitCompoundTerms(text);
 }
 
 /* ============ 导入1：症状分类 ============ */
@@ -1444,19 +1491,17 @@ function getSelectedSymptoms(){
   return Array.from(out);
 }
 function getSymptomsForDiagnosis(){
-  const tags=getSelectedSymptoms();
-  const chief=document.getElementById('chiefComplaint').value.trim();
-  if(!chief) return tags;
-  /* 只从主诉里提取"已存在于症状库中的标准症状名" */
-  const chiefSyms=[];
-  const tagSet=new Set(tags);
-  document.querySelectorAll('.symptom-tag').forEach(el=>{
-    const v=(el.dataset.value||'').trim();
-    if(v && v.length>=2 && chief.includes(v) && !tagSet.has(v)){
-      chiefSyms.push(v);
-    }
+  const tags = getSelectedSymptoms();
+  const chief = document.getElementById('chiefComplaint').value.trim();
+  if (!chief) return tags;
+  /* 用与赋分表相同的拆词器处理主诉 */
+  const chiefWords = splitCompoundTerms(chief);
+  const tagSet = new Set(tags);
+  chiefWords.forEach(function(w){
+    const norm = normalizeTerm(w);
+    if (norm && norm.length >= 2) tagSet.add(norm);
   });
-  return [...tags,...chiefSyms];
+  return Array.from(tagSet);
 }
 function getTongueString(){return getCategorySelectedStrings(TONGUE_CATEGORY).join('，');}
 function getPulseString(){return getCategorySelectedStrings(PULSE_CATEGORY).join('，');}
@@ -1723,21 +1768,26 @@ function inferPatterns(symptoms){
   const mode = getMatchMode();
 
   /* 判断两个症状是否算"匹配"（根据当前模式）*/
-  function isMatch(a, b){
+    function isMatch(a, b){
     if(!a || !b) return false;
     if(a === b) return true;
 
-    /* 长词包含匹配：3 字以上才允许（所有模式都启用） */
+    /* 严格模式：只允许"长度相近"的包含匹配（避免短词误包含长词） */
+    if(mode === 'strict'){
+      if(a.length >= 3 && a.includes(b) && (a.length - b.length) <= 2) return true;
+      if(b.length >= 3 && b.includes(a) && (b.length - a.length) <= 2) return true;
+      return false;
+    }
+
+    /* 标准/宽松模式：长词包含匹配（3 字以上） */
     if(a.length >= 3 && a.includes(b)) return true;
     if(b.length >= 3 && b.includes(a)) return true;
 
     /* 模糊匹配：根据模式 */
-    if(mode === 'strict') return false;
     const dist = levenshteinDistance(a, b);
     const maxLen = Math.max(a.length, b.length);
-    if(maxLen <= 3) return false;      /* 3 字以内不允许模糊 */
+    if(maxLen <= 3) return false;
     if(mode === 'loose') return dist <= 2;
-    /* normal */
     return dist <= 1;
   }
 

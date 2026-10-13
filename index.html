@@ -823,9 +823,11 @@ function splitTopLevelCompound(str){
   let cur = '', depth = 0;
   for (let i = 0; i < str.length; i++) {
     const ch = str[i];
-    if (ch === '[' || ch === '<' || ch === '（' || ch === '(') depth++;
-    else if (ch === ']' || ch === '>' || ch === '）' || ch === ')') depth--;
-    else if ((ch === ',' || ch === '，' || ch === '、' || ch === '；' || ch === ';' || ch === '/' || ch === '／') && depth === 0) {
+    if (ch === '[' || ch === '【' || ch === '〈' || ch === '<' || ch === '《' || ch === '（' || ch === '(') {
+      depth++;
+    } else if (ch === ']' || ch === '】' || ch === '〉' || ch === '>' || ch === '》' || ch === '）' || ch === ')') {
+      if (depth > 0) depth--;   // ★ 保护：即使不配对的右括号，depth 也不会变成负数
+    } else if ((ch === ',' || ch === '，' || ch === '、' || ch === '；' || ch === ';' || ch === '/' || ch === '／') && depth === 0) {
       if (cur.trim()) parts.push(cur.trim());
       cur = '';
       continue;
@@ -839,36 +841,68 @@ function splitTopLevelCompound(str){
 function parseCompoundStructured(text){
   if (!text) return [];
   const result = [];
+  /* ★ 所有需要剥离的括号字符（中英文全角半角）*/
+  const STRIP = /[<>〈〉《》\[\]【】（）()]/g;
+
   splitTopLevelCompound(String(text)).forEach(function(part){
     part = part.trim();
     if (!part) return;
-    const outerMatch = part.match(/^([^\[\]<>]+?)\s*\[\s*(.+?)\s*\]$/);
+
+    /* 外层方括号：X[...] 或 X【...】 */
+    const outerMatch = part.match(/^([^\[\]【】<>〈〉《》]+?)\s*[\[【]\s*(.+?)\s*[\]】]$/);
     if (outerMatch) {
-      const pre = outerMatch[1].trim();
+      const pre = outerMatch[1].replace(STRIP, '').trim();
       splitTopLevelCompound(outerMatch[2]).forEach(function(ip){
         ip = ip.trim();
         if (!ip) return;
-        const ym = ip.match(/^([^<>\[\]]+?)\s*<\s*(.+?)\s*>$/);
+        /* 内层尖括号：Y<...> 或 Y〈...〉 或 Y《...》 */
+        const ym = ip.match(/^([^<>〈〉《》\[\]【】]+?)\s*[<〈《]\s*(.+?)\s*[>〉》]$/);
         if (ym) {
-          const parent = ym[1].trim();
+          const parent = ym[1].replace(STRIP, '').trim();
           splitTopLevelCompound(ym[2]).forEach(function(mod){
-            result.push({ pre: pre, parent: parent, mod: mod, label: pre + parent + mod });
+            const cleanMod = mod.replace(STRIP, '').trim();
+            if (!cleanMod) return;
+            result.push({
+              pre: pre,
+              parent: parent,
+              mod: cleanMod,
+              label: (pre + parent + cleanMod).replace(STRIP, '')
+            });
           });
         } else {
-          result.push({ pre: pre, parent: ip, mod: '', label: pre + ip });
+          const cleanIp = ip.replace(STRIP, '').trim();
+          if (cleanIp) {
+            result.push({
+              pre: pre,
+              parent: cleanIp,
+              mod: '',
+              label: (pre + cleanIp).replace(STRIP, '')
+            });
+          }
         }
       });
       return;
     }
-    const ym2 = part.match(/^([^<>\[\]]+?)\s*<\s*(.+?)\s*>$/);
+
+    /* 外层尖括号：Y<...> 或 Y〈...〉 或 Y《...》 */
+    const ym2 = part.match(/^([^<>〈〉《》\[\]【】]+?)\s*[<〈《]\s*(.+?)\s*[>〉》]$/);
     if (ym2) {
-      const parent = ym2[1].trim();
+      const parent = ym2[1].replace(STRIP, '').trim();
       splitTopLevelCompound(ym2[2]).forEach(function(mod){
-        result.push({ pre: '', parent: parent, mod: mod, label: parent + mod });
+        const cleanMod = mod.replace(STRIP, '').trim();
+        if (!cleanMod) return;
+        result.push({
+          pre: '',
+          parent: parent,
+          mod: cleanMod,
+          label: (parent + cleanMod).replace(STRIP, '')
+        });
       });
       return;
     }
-    const clean = part.replace(/[<>\[\]（）()]/g, '').trim();
+
+    /* 独立症状：剥离所有括号 */
+    const clean = part.replace(STRIP, '').trim();
     if (clean) result.push({ pre: '', parent: clean, mod: '', label: clean });
   });
   return result;

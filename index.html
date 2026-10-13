@@ -814,6 +814,126 @@ function splitSyndromeSymptoms(text){
   return splitCompoundTerms(text);
 }
 
+/* ================================================================
+ * 结构化拆词与匹配（v2）
+ * ================================================================ */
+
+function splitTopLevelCompound(str){
+  const parts = [];
+  let cur = '', depth = 0;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (ch === '[' || ch === '<' || ch === '（' || ch === '(') depth++;
+    else if (ch === ']' || ch === '>' || ch === '）' || ch === ')') depth--;
+    else if ((ch === ',' || ch === '，' || ch === '、' || ch === '；' || ch === ';' || ch === '/' || ch === '／') && depth === 0) {
+      if (cur.trim()) parts.push(cur.trim());
+      cur = '';
+      continue;
+    }
+    cur += ch;
+  }
+  if (cur.trim()) parts.push(cur.trim());
+  return parts;
+}
+
+function parseCompoundStructured(text){
+  if (!text) return [];
+  const result = [];
+  splitTopLevelCompound(String(text)).forEach(function(part){
+    part = part.trim();
+    if (!part) return;
+    const outerMatch = part.match(/^([^\[\]<>]+?)\s*\[\s*(.+?)\s*\]$/);
+    if (outerMatch) {
+      const pre = outerMatch[1].trim();
+      splitTopLevelCompound(outerMatch[2]).forEach(function(ip){
+        ip = ip.trim();
+        if (!ip) return;
+        const ym = ip.match(/^([^<>\[\]]+?)\s*<\s*(.+?)\s*>$/);
+        if (ym) {
+          const parent = ym[1].trim();
+          splitTopLevelCompound(ym[2]).forEach(function(mod){
+            result.push({ pre: pre, parent: parent, mod: mod, label: pre + parent + mod });
+          });
+        } else {
+          result.push({ pre: pre, parent: ip, mod: '', label: pre + ip });
+        }
+      });
+      return;
+    }
+    const ym2 = part.match(/^([^<>\[\]]+?)\s*<\s*(.+?)\s*>$/);
+    if (ym2) {
+      const parent = ym2[1].trim();
+      splitTopLevelCompound(ym2[2]).forEach(function(mod){
+        result.push({ pre: '', parent: parent, mod: mod, label: parent + mod });
+      });
+      return;
+    }
+    const clean = part.replace(/[<>\[\]（）()]/g, '').trim();
+    if (clean) result.push({ pre: '', parent: clean, mod: '', label: clean });
+  });
+  return result;
+}
+
+function lookupSymptomStructure(label){
+  const fallback = { pre: '', parent: label, mod: '', label: label };
+  if (!label) return fallback;
+  if (typeof ALL_TAGS === 'undefined' || !ALL_TAGS || !ALL_TAGS.length) return fallback;
+  const found = ALL_TAGS.find(function(t){ return (t.label || '') === label; });
+  if (found) {
+    return {
+      pre: found.precondition || '',
+      parent: found.parent || found.label || '',
+      mod: found.modifier || '',
+      label: found.label || label
+    };
+  }
+  return fallback;
+}
+
+function getStructuredSelectedSymptoms(){
+  const out = [];
+  document.querySelectorAll('.symptom-tag.active').forEach(function(el){
+    const pre = el.dataset.precondition || '';
+    const parent = el.dataset.parent || '';
+    const mod = el.dataset.modifier || '';
+    const label = el.dataset.fullLabel || el.dataset.value || '';
+    const isMod = el.classList.contains('modifier-tag');
+    const isParent = el.classList.contains('parent-tag');
+    if (isMod) {
+      out.push({ pre: pre, parent: parent, mod: mod || el.dataset.value || '', label: label, kind: 'modifier' });
+    } else if (isParent) {
+      out.push({ pre: pre, parent: parent || el.dataset.value || '', mod: '', label: label, kind: 'parent' });
+    } else {
+      out.push({ pre: pre, parent: label, mod: '', label: label, kind: 'standalone' });
+    }
+  });
+  return out;
+}
+
+function matchStructured(patient, kb, mode){
+  if (!patient || !kb) return false;
+  if (mode === 'strict') {
+    if ((patient.parent || '') !== (kb.parent || '')) return false;
+    if ((patient.pre || '') !== (kb.pre || '')) return false;
+    if ((patient.mod || '') !== (kb.mod || '')) return false;
+    return true;
+  }
+  const norm = typeof normalizeTerm === 'function' ? normalizeTerm : function(x){return x||'';};
+  const eq = function(a, b){ return norm(a) === norm(b); };
+  if (!eq(patient.parent, kb.parent)) return false;
+  if (mode === 'loose') return true;
+  if (!eq(patient.pre, kb.pre)) return false;
+  if (kb.mod) {
+    if (patient.mod && !eq(patient.mod, kb.mod)) return false;
+  }
+  return true;
+}
+
+function stringsToStructured(arr){
+  if (!Array.isArray(arr)) return [];
+  return arr.map(function(lbl){ return lookupSymptomStructure(lbl); });
+}
+
 /* ============ 导入1：症状分类 ============ */
 function importSymptomData(event){
   const file=event.target.files[0];if(!file)return;
@@ -984,13 +1104,17 @@ function importWeightTable(event){
     SYMPTOM_TO_SYNDROME_MAP=newSympMap;
     WEIGHT_TABLE_RAW=rawRows;
     try{
-      const kbEntries=[];
+            const kbEntries=[];
       rawRows.forEach(function(row){
         if(!row.disease||!row.syndrome)return;
+        const primaryStr = splitSyndromeSymptoms(row.primary);
+        const secondaryStr = splitSyndromeSymptoms(row.secondary);
         kbEntries.push({
           disease: row.disease, pattern: row.syndrome,
-          primary: splitSyndromeSymptoms(row.primary),
-          secondary: splitSyndromeSymptoms(row.secondary),
+          primary: primaryStr,
+          secondary: secondaryStr,
+          primaryStruct: parseCompoundStructured(row.primary),
+          secondaryStruct: parseCompoundStructured(row.secondary),
           tongue: splitSyndromeSymptoms(row.tongue).map(function(v){return {type:'single',value:v};}),
           pulse: splitSyndromeSymptoms(row.pulse),
           formula: row.formula||'', method: row.treatment||'', source: row.source||'',
@@ -1071,7 +1195,15 @@ function importKnowledgeExcel(e){
         const pulse=gv(row,puk).split(/[、，,、\s]+/).filter(s=>s.trim());
         const formula=gv(row,fk);
         if(formula)formulaCount++;
-        nb.push({disease:d,pattern:p,primary:pr,secondary:sec,tongue,pulse,formula:formula,method:gv(row,mk),source:gv(row,sok),weights:{primary:60,secondary:20,tongue:10,pulse:10}});
+                nb.push({
+          disease:d, pattern:p,
+          primary: pr, secondary: sec,
+          primaryStruct: parseCompoundStructured(gv(row,prk)),
+          secondaryStruct: parseCompoundStructured(gv(row,sk)),
+          tongue, pulse, formula:formula,
+          method:gv(row,mk), source:gv(row,sok),
+          weights:{primary:60,secondary:20,tongue:10,pulse:10}
+        });
       }
       if(nb.length===0)throw new Error('无有效数据');
       KNOWLEDGE_BASE=nb;
@@ -1491,17 +1623,28 @@ function getSelectedSymptoms(){
   return Array.from(out);
 }
 function getSymptomsForDiagnosis(){
-  const tags = getSelectedSymptoms();
+  const selected = getStructuredSelectedSymptoms();
   const chief = document.getElementById('chiefComplaint').value.trim();
-  if (!chief) return tags;
-  /* 用与赋分表相同的拆词器处理主诉 */
-  const chiefWords = splitCompoundTerms(chief);
-  const tagSet = new Set(tags);
-  chiefWords.forEach(function(w){
-    const norm = normalizeTerm(w);
-    if (norm && norm.length >= 2) tagSet.add(norm);
+  const chiefStruct = [];
+  if (chief) {
+    parseCompoundStructured(chief).forEach(function(obj){
+      const looked = lookupSymptomStructure(obj.label);
+      if (looked.pre || looked.mod || looked.parent !== obj.label) {
+        chiefStruct.push(looked);
+      } else {
+        chiefStruct.push(obj);
+      }
+    });
+  }
+  const seen = new Set();
+  const merged = [];
+  selected.concat(chiefStruct).forEach(function(obj){
+    const key = obj.label;
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(obj);
   });
-  return Array.from(tagSet);
+  return merged;
 }
 function getTongueString(){return getCategorySelectedStrings(TONGUE_CATEGORY).join('，');}
 function getPulseString(){return getCategorySelectedStrings(PULSE_CATEGORY).join('，');}
@@ -1764,58 +1907,56 @@ document.getElementById('isVegetarian').addEventListener('change',function(){isV
 
 /* ============ 辨证引擎 ============ */
 function inferPatterns(symptoms){
-  const normSymptoms = symptoms.map(s => normalizeTerm(s));
+  let patientStruct;
+  if (symptoms.length === 0) patientStruct = [];
+  else if (typeof symptoms[0] === 'string') {
+    patientStruct = stringsToStructured(symptoms);
+  } else {
+    patientStruct = symptoms;
+  }
+
   const mode = getMatchMode();
 
-  /* 判断两个症状是否算"匹配"（根据当前模式）*/
-    function isMatch(a, b){
-    if(!a || !b) return false;
-    if(a === b) return true;
-
-    /* 严格模式：只允许"长度相近"的包含匹配（避免短词误包含长词） */
-    if(mode === 'strict'){
-      if(a.length >= 3 && a.includes(b) && (a.length - b.length) <= 2) return true;
-      if(b.length >= 3 && b.includes(a) && (b.length - a.length) <= 2) return true;
-      return false;
-    }
-
-    /* 标准/宽松模式：长词包含匹配（3 字以上） */
-    if(a.length >= 3 && a.includes(b)) return true;
-    if(b.length >= 3 && b.includes(a)) return true;
-
-    /* 模糊匹配：根据模式 */
-    const dist = levenshteinDistance(a, b);
-    const maxLen = Math.max(a.length, b.length);
-    if(maxLen <= 3) return false;
-    if(mode === 'loose') return dist <= 2;
-    return dist <= 1;
+  function getPrimaryStruct(item){
+    if (Array.isArray(item.primaryStruct) && item.primaryStruct.length) return item.primaryStruct;
+    return stringsToStructured(item.primary || []);
+  }
+  function getSecondaryStruct(item){
+    if (Array.isArray(item.secondaryStruct) && item.secondaryStruct.length) return item.secondaryStruct;
+    return stringsToStructured(item.secondary || []);
   }
 
   const results = [];
-  for(const item of KNOWLEDGE_BASE){
-    const np = (item.primary   || []).map(p => normalizeTerm(p)).filter(Boolean);
-    const ns = (item.secondary || []).map(s => normalizeTerm(s)).filter(Boolean);
+  for (const item of KNOWLEDGE_BASE) {
+    const np = getPrimaryStruct(item);
+    const ns = getSecondaryStruct(item);
 
     const matchedP = [];
-    for(const p of np){
-      if(normSymptoms.some(s => isMatch(s, p))) matchedP.push(p);
+    for (const k of np) {
+      if (patientStruct.some(function(p){ return matchStructured(p, k, mode); })) {
+        matchedP.push(k.label || k.parent);
+      }
     }
     const matchedS = [];
-    for(const s of ns){
-      if(normSymptoms.some(sym => isMatch(sym, s))) matchedS.push(s);
+    for (const k of ns) {
+      if (patientStruct.some(function(p){ return matchStructured(p, k, mode); })) {
+        matchedS.push(k.label || k.parent);
+      }
     }
 
     const pRate = np.length > 0 ? matchedP.length / np.length : 0;
     const sRate = ns.length > 0 ? matchedS.length / ns.length : 0;
     const w = item.weights || {primary:60, secondary:20, tongue:10, pulse:10};
     let conf = pRate * (w.primary/(w.primary+w.secondary)) + sRate * (w.secondary/(w.primary+w.secondary));
-    if(pRate < 0.2) conf *= 0.4;
-    if(conf > 0.05) results.push({
+    if (pRate < 0.2) conf *= 0.4;
+    if (conf > 0.05) results.push({
       disease: item.disease, pattern: item.pattern,
       confidence: Math.min(conf, 1.0),
       pRate, sRate,
-      matchedP, totalP: np,
-      matchedS, totalS: ns,
+      matchedP,
+      totalP: np.map(function(k){ return k.label || k.parent; }),
+      matchedS,
+      totalS: ns.map(function(k){ return k.label || k.parent; }),
       historyBoost: 1.0
     });
   }

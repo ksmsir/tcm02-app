@@ -2650,10 +2650,15 @@ function loadPatient(p){
   if(getSelectedSymptoms().length === 0){
     restoreSymptomsFromLatestPrescription(p.id, p.name);
   }
-  selectedHerbs=[];
+    selectedHerbs=[];
   activeHistoryPatterns.clear();
   loadHistoryForPatient(p.id);
   updateSymptomCount();
+  applySmartControl();
+  document.querySelectorAll('.parent-group').forEach(function(pgEl){
+    updateGroupVisual(pgEl);
+    updateModifierStates(pgEl);
+  });
   showToast('✅ 已加载患者：'+(p.name||'')+' (ID: '+p.id+')');
 }
 function restoreSymptomsFromSnapshot(p){

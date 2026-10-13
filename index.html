@@ -709,7 +709,7 @@ function getPinyinInitials(str){
 const DEFAULT_SYNONYM_MAP={'恶寒':['畏寒','怕冷'],'发热':['发烧','身热'],'头身疼痛':['头痛身痛','身痛','头痛'],'鼻塞':['鼻窍不通'],'流清涕':['清涕'],'流黄涕':['黄涕','浊涕'],'口渴':['口干'],'咳嗽':['咳','咳逆'],'胸闷':['胸痞'],'心悸':['心慌'],'失眠':['不寐'],'神疲乏力':['疲乏','困倦','身倦','倦怠'],'纳呆':['食欲不振','食少','纳差'],'便溏':['大便溏薄'],'便秘':['大便干结','便干'],'泄泻':['腹泻','便稀'],'头晕':['眩晕','头眩']};
 function normalizeTerm(term){term=(term||'').trim();if(!term)return term;for(const [std,variants] of Object.entries(SYNONYM_MAP)){if(variants.includes(term))return std;}return term;}
 function levenshteinDistance(a,b){if(a.length===0)return b.length;if(b.length===0)return a.length;const m=[];for(let i=0;i<=b.length;i++)m[i]=[i];for(let j=0;j<=a.length;j++)m[0][j]=j;for(let i=1;i<=b.length;i++)for(let j=1;j<=a.length;j++){const cost=a[j-1]===b[i-1]?0:1;m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+cost);}return m[b.length][a.length];}
-function isFuzzyMatch(a,b){if(!a||!b)return false;if(a===b)return true;const d=levenshteinDistance(a,b);const maxLen=Math.max(a.length,b.length);if(maxLen<=2)return d===0;return d<=2;}
+function isFuzzyMatch(a,b){if(!a||!b)return false;if(a===b)return true;const d=levenshteinDistance(a,b);const maxLen=Math.max(a.length,b.length);if(maxLen<=3)return false;return d<=1;}
 
 /* ============ 复合标签解析器 ============ */
 function splitByCommaTopLevel(str){const result=[];let cur='';let depth=0;for(let i=0;i<str.length;i++){const ch=str[i];if(ch==='<'){depth++;cur+=ch;continue;}if(ch==='>'){depth--;cur+=ch;continue;}if((ch===','||ch==='，'||ch==='、')&&depth===0){if(cur.trim())result.push(cur.trim());cur='';continue;}cur+=ch;}if(cur.trim())result.push(cur.trim());return result;}
@@ -1433,13 +1433,17 @@ function getSelectedSymptoms(){
 function getSymptomsForDiagnosis(){
   const tags=getSelectedSymptoms();
   const chief=document.getElementById('chiefComplaint').value.trim();
-  let cw=[];
-  if(chief){
-    const raw=chief.split(/[，,、。．；；：:！!？? \n\r\t]+/).filter(s=>s.length>=2);
-    const sw=['的','了','在','是','我','有','和','就','不','人','都','一','个','上','也','很','到','说','要','去','你','会','着','没有','看','好','自己','这'];
-    raw.forEach(w=>{if(w.length>=2&&!sw.includes(w))cw.push(w);});
-  }
-  return [...tags,...cw];
+  if(!chief) return tags;
+  /* 只从主诉里提取"已存在于症状库中的标准症状名" */
+  const chiefSyms=[];
+  const tagSet=new Set(tags);
+  document.querySelectorAll('.symptom-tag').forEach(el=>{
+    const v=(el.dataset.value||'').trim();
+    if(v && v.length>=2 && chief.includes(v) && !tagSet.has(v)){
+      chiefSyms.push(v);
+    }
+  });
+  return [...tags,...chiefSyms];
 }
 function getTongueString(){return getCategorySelectedStrings(TONGUE_CATEGORY).join('，');}
 function getPulseString(){return getCategorySelectedStrings(PULSE_CATEGORY).join('，');}
@@ -1707,8 +1711,26 @@ function inferPatterns(symptoms){
   for(const item of KNOWLEDGE_BASE){
     const np=(item.primary||[]).map(p=>normalizeTerm(p));
     const ns=(item.secondary||[]).map(s=>normalizeTerm(s));
-    const matchedP=[];for(const p of np){if(normSymptoms.some(s=>s.includes(p)||p.includes(s)||isFuzzyMatch(s,p)))matchedP.push(p);}
-    const matchedS=[];for(const s of ns){if(normSymptoms.some(sym=>sym.includes(s)||s.includes(sym)||isFuzzyMatch(sym,s)))matchedS.push(s);}
+    const matchedP=[];
+    for(const p of np){
+      if(normSymptoms.some(s=>{
+        if(!s||!p) return false;
+        if(s===p) return true;
+        if(s.length>=3 && s.includes(p)) return true;
+        if(p.length>=3 && p.includes(s)) return true;
+        return isFuzzyMatch(s,p);
+      })) matchedP.push(p);
+    }
+    const matchedS=[];
+    for(const s of ns){
+      if(normSymptoms.some(sym=>{
+        if(!sym||!s) return false;
+        if(sym===s) return true;
+        if(sym.length>=3 && sym.includes(s)) return true;
+        if(s.length>=3 && s.includes(sym)) return true;
+        return isFuzzyMatch(sym,s);
+      })) matchedS.push(s);
+    }
     const pRate=np.length>0?matchedP.length/np.length:0;
     const sRate=ns.length>0?matchedS.length/ns.length:0;
     const w=item.weights||{primary:60,secondary:20,tongue:10,pulse:10};
@@ -3545,11 +3567,37 @@ function importCases(e){
   const r=new FileReader();
   r.onload=function(ev){
     try{
-      const d=JSON.parse(ev.target.result);
+      const d=JSON.parse(ev.result||ev.target.result);
       if(!Array.isArray(d))throw new Error('格式错误');
       localStorage.setItem('tcm_cases_pro',JSON.stringify(d));
-      showToast('✅ 导入 '+d.length+' 条');updateStorageInfo();
-    }catch(err){showToast('❌ 格式错误');}
+
+      /* ★ 关键修复：把每条病例里的 patient 同步到患者档案 */
+      const arch = getPatientArchive();
+      let added = 0, updated = 0, skipped = 0;
+      d.forEach(function(item){
+        const p = item && item.patient;
+        if(!p || !p.name){ skipped++; return; }
+        if(!p.id) p.id = (p.name||'未知')+(p.birth||'')+(p.gender||'')+Date.now().toString().slice(-6)+Math.floor(Math.random()*1000);
+        const idx = arch.findIndex(function(x){ return x.id === p.id; });
+        if(idx >= 0){
+          arch[idx] = Object.assign({}, arch[idx], p);
+          updated++;
+        }else{
+          arch.push(p);
+          added++;
+        }
+      });
+      savePatientArchive(arch);
+
+      showToast('✅ 导入 '+d.length+' 条病例（患者新增 '+added+'，更新 '+updated+'）');
+      updateStorageInfo();
+
+      /* 刷新患者搜索下拉 */
+      try { renderPatientSuggestions(''); } catch(e){}
+    }catch(err){
+      showToast('❌ 导入失败：'+err.message);
+      console.error(err);
+    }
   };
   r.readAsText(f);e.target.value='';
 }

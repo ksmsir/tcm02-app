@@ -720,7 +720,38 @@ function getPinyinInitials(str){
 
 /* ============ 同义词 ============ */
 const DEFAULT_SYNONYM_MAP={'恶寒':['畏寒','怕冷'],'发热':['发烧','身热'],'头身疼痛':['头痛身痛','身痛','头痛'],'鼻塞':['鼻窍不通'],'流清涕':['清涕'],'流黄涕':['黄涕','浊涕'],'口渴':['口干'],'咳嗽':['咳','咳逆'],'胸闷':['胸痞'],'心悸':['心慌'],'失眠':['不寐'],'神疲乏力':['疲乏','困倦','身倦','倦怠'],'纳呆':['食欲不振','食少','纳差'],'便溏':['大便溏薄'],'便秘':['大便干结','便干'],'泄泻':['腹泻','便稀'],'头晕':['眩晕','头眩']};
-function normalizeTerm(term){term=(term||'').trim();if(!term)return term;for(const [std,variants] of Object.entries(SYNONYM_MAP)){if(variants.includes(term))return std;}return term;}
+/* ============ 性能优化 A：同义词反向索引 ============ */
+let ALIAS_TO_STD = new Map();
+let _aliasIndexBuilt = false;
+
+function rebuildAliasIndex(){
+  ALIAS_TO_STD = new Map();
+  if(!SYNONYM_MAP || typeof SYNONYM_MAP !== 'object') { _aliasIndexBuilt = true; return; }
+  const keys = Object.keys(SYNONYM_MAP);
+  for(let i=0;i<keys.length;i++){
+    const std = keys[i];
+    const variants = SYNONYM_MAP[std];
+    if(!Array.isArray(variants)) continue;
+    for(let j=0;j<variants.length;j++){
+      const alias = (variants[j]||'').trim();
+      /* 保持原始语义：先出现者胜 */
+      if(alias && !ALIAS_TO_STD.has(alias)) ALIAS_TO_STD.set(alias, std);
+    }
+  }
+  _aliasIndexBuilt = true;
+}
+
+const _normalizeCache = new Map();
+function normalizeTerm(term){
+  if(!_aliasIndexBuilt) rebuildAliasIndex();
+  term = (term||'').trim();
+  if(!term) return term;
+  const cached = _normalizeCache.get(term);
+  if(cached !== undefined) return cached;
+  const result = ALIAS_TO_STD.get(term) || term;
+  _normalizeCache.set(term, result);
+  return result;
+}
 function levenshteinDistance(a,b){if(a.length===0)return b.length;if(b.length===0)return a.length;const m=[];for(let i=0;i<=b.length;i++)m[i]=[i];for(let j=0;j<=a.length;j++)m[0][j]=j;for(let i=1;i<=b.length;i++)for(let j=1;j<=a.length;j++){const cost=a[j-1]===b[i-1]?0:1;m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+cost);}return m[b.length][a.length];}
 function isFuzzyMatch(a,b){if(!a||!b)return false;if(a===b)return true;const d=levenshteinDistance(a,b);const maxLen=Math.max(a.length,b.length);if(maxLen<=3)return false;return d<=1;}
 
@@ -1940,60 +1971,146 @@ function renderHistoryTags(){
 document.getElementById('isVegetarian').addEventListener('change',function(){isVegetarian=this.checked;saveDailySession();});
 
 /* ============ 辨证引擎 ============ */
+/* ============ 性能优化 B：证型结构化结果缓存 ============ */
+const _kbPrimaryCache   = new WeakMap();
+const _kbSecondaryCache = new WeakMap();
+
+function getPrimaryStruct(item){
+  if(Array.isArray(item.primaryStruct) && item.primaryStruct.length) return item.primaryStruct;
+  let v = _kbPrimaryCache.get(item);
+  if(v) return v;
+  v = stringsToStructured(item.primary || []);
+  _kbPrimaryCache.set(item, v);
+  return v;
+}
+function getSecondaryStruct(item){
+  if(Array.isArray(item.secondaryStruct) && item.secondaryStruct.length) return item.secondaryStruct;
+  let v = _kbSecondaryCache.get(item);
+  if(v) return v;
+  v = stringsToStructured(item.secondary || []);
+  _kbSecondaryCache.set(item, v);
+  return v;
+}
 function inferPatterns(symptoms){
+  if(!Array.isArray(KNOWLEDGE_BASE) || KNOWLEDGE_BASE.length === 0) return [];
+
   let patientStruct;
-  if (symptoms.length === 0) patientStruct = [];
-  else if (typeof symptoms[0] === 'string') {
-    patientStruct = stringsToStructured(symptoms);
-  } else {
-    patientStruct = symptoms;
-  }
+  if(symptoms.length === 0) patientStruct = [];
+  else if(typeof symptoms[0] === 'string') patientStruct = stringsToStructured(symptoms);
+  else patientStruct = symptoms;
 
   const mode = getMatchMode();
 
-  function getPrimaryStruct(item){
-    if (Array.isArray(item.primaryStruct) && item.primaryStruct.length) return item.primaryStruct;
-    return stringsToStructured(item.primary || []);
-  }
-  function getSecondaryStruct(item){
-    if (Array.isArray(item.secondaryStruct) && item.secondaryStruct.length) return item.secondaryStruct;
-    return stringsToStructured(item.secondary || []);
+  /* 1) 按"规范化后的父症状"给患者症状分桶 */
+  const patientByParent = new Map();
+  for(let i=0;i<patientStruct.length;i++){
+    const p = patientStruct[i];
+    const key = normalizeTerm(p.parent || '');
+    let arr = patientByParent.get(key);
+    if(!arr){ arr = []; patientByParent.set(key, arr); }
+    arr.push(p);
   }
 
+  /* 2) 构建知识库"规范化父症状 → 结构位置"倒排索引 */
+  /*    说明：索引 key 使用 normalizeTerm(parent)，保证与 matchStructured 的 parent 比较规则完全一致 */
+  const primaryByParent   = new Map();
+  const secondaryByParent = new Map();
+
+  const N = KNOWLEDGE_BASE.length;
+  for(let idx=0; idx<N; idx++){
+    const item = KNOWLEDGE_BASE[idx];
+    const np = getPrimaryStruct(item);
+    for(let ki=0; ki<np.length; ki++){
+      const k = np[ki];
+      const key = normalizeTerm(k.parent || '');
+      let arr = primaryByParent.get(key);
+      if(!arr){ arr = []; primaryByParent.set(key, arr); }
+      arr.push({idx: idx, ki: ki, k: k});
+    }
+    const ns = getSecondaryStruct(item);
+    for(let ki=0; ki<ns.length; ki++){
+      const k = ns[ki];
+      const key = normalizeTerm(k.parent || '');
+      let arr = secondaryByParent.get(key);
+      if(!arr){ arr = []; secondaryByParent.set(key, arr); }
+      arr.push({idx: idx, ki: ki, k: k});
+    }
+  }
+
+  /* 3) 遍历患者症状，只在该父症状对应的桶里做 matchStructured */
+  const matchedPSets = new Map();   // idx → Set<ki>
+  const matchedSSets = new Map();
+
+  for(let i=0;i<patientStruct.length;i++){
+    const p = patientStruct[i];
+    const key = normalizeTerm(p.parent || '');
+
+    const candP = primaryByParent.get(key);
+    if(candP){
+      for(let j=0;j<candP.length;j++){
+        const e = candP[j];
+        if(matchStructured(p, e.k, mode)){
+          let s = matchedPSets.get(e.idx);
+          if(!s){ s = new Set(); matchedPSets.set(e.idx, s); }
+          s.add(e.ki);
+        }
+      }
+    }
+
+    const candS = secondaryByParent.get(key);
+    if(candS){
+      for(let j=0;j<candS.length;j++){
+        const e = candS[j];
+        if(matchStructured(p, e.k, mode)){
+          let s = matchedSSets.get(e.idx);
+          if(!s){ s = new Set(); matchedSSets.set(e.idx, s); }
+          s.add(e.ki);
+        }
+      }
+    }
+  }
+
+  /* 4) 逐条证型计算置信度（公式与原实现完全一致） */
   const results = [];
-  for (const item of KNOWLEDGE_BASE) {
+  for(let idx=0; idx<N; idx++){
+    const item = KNOWLEDGE_BASE[idx];
     const np = getPrimaryStruct(item);
     const ns = getSecondaryStruct(item);
 
-    const matchedP = [];
-    for (const k of np) {
-      if (patientStruct.some(function(p){ return matchStructured(p, k, mode); })) {
-        matchedP.push(k.label || k.parent);
-      }
+    const pSet = matchedPSets.get(idx);
+    const sSet = matchedSSets.get(idx);
+
+    /* 按 np / ns 原始顺序输出 matched 与 total，保证显示顺序与原来一致 */
+    let pMatch = 0, sMatch = 0;
+    const matchedP = [], matchedS = [], totalP = [], totalS = [];
+    for(let i=0;i<np.length;i++){
+      const lbl = np[i].label || np[i].parent || '';
+      totalP.push(lbl);
+      if(pSet && pSet.has(i)){ pMatch++; matchedP.push(lbl); }
     }
-    const matchedS = [];
-    for (const k of ns) {
-      if (patientStruct.some(function(p){ return matchStructured(p, k, mode); })) {
-        matchedS.push(k.label || k.parent);
-      }
+    for(let i=0;i<ns.length;i++){
+      const lbl = ns[i].label || ns[i].parent || '';
+      totalS.push(lbl);
+      if(sSet && sSet.has(i)){ sMatch++; matchedS.push(lbl); }
     }
 
-    const pRate = np.length > 0 ? matchedP.length / np.length : 0;
-    const sRate = ns.length > 0 ? matchedS.length / ns.length : 0;
+    const pRate = np.length > 0 ? pMatch / np.length : 0;
+    const sRate = ns.length > 0 ? sMatch / ns.length : 0;
     const w = item.weights || {primary:60, secondary:20, tongue:10, pulse:10};
     let conf = pRate * (w.primary/(w.primary+w.secondary)) + sRate * (w.secondary/(w.primary+w.secondary));
-    if (pRate < 0.2) conf *= 0.4;
-    if (conf > 0.05) results.push({
-      disease: item.disease, pattern: item.pattern,
-      confidence: Math.min(conf, 1.0),
-      pRate, sRate,
-      matchedP,
-      totalP: np.map(function(k){ return k.label || k.parent; }),
-      matchedS,
-      totalS: ns.map(function(k){ return k.label || k.parent; }),
-      historyBoost: 1.0
-    });
+    if(pRate < 0.2) conf *= 0.4;
+    if(conf > 0.05){
+      results.push({
+        disease: item.disease, pattern: item.pattern,
+        confidence: Math.min(conf, 1.0),
+        pRate: pRate, sRate: sRate,
+        matchedP: matchedP, totalP: totalP,
+        matchedS: matchedS, totalS: totalS,
+        historyBoost: 1.0
+      });
+    }
   }
+
   applyHistoryWeight(results, medicalHistoryItems);
   results.sort((a, b) => b.confidence - a.confidence);
   return results;
@@ -2030,7 +2147,15 @@ function displayResults(results){
 document.getElementById('resultCount').textContent = '找到 ' + results.length + ' 个候选证型 [' + modeLabel + '模式]';
   if(!results.length){area.innerHTML='<div class="empty-state">无匹配证型</div>';return;}
   let html='';
-  results.forEach(r=>{
+const MAX_RESULT_RENDER = 80;
+const renderList = results.slice(0, MAX_RESULT_RENDER);
+if(results.length > MAX_RESULT_RENDER){
+  html += '<div style="margin-bottom:10px;padding:8px 12px;background:#fef5e7;border-left:4px solid #e67e22;border-radius:6px;font-size:13px;color:#8a6d3b;">'
+       + '⚠️ 共匹配到 <strong>'+results.length+'</strong> 个证型，为保证流畅仅显示置信度最高的前 '
+       + '<strong>'+MAX_RESULT_RENDER+'</strong> 个。可切换更严格的匹配模式或减少症状以缩小范围。'
+       + '</div>';
+}
+  renderList.forEach(r=>{
     const conf=Math.round(r.confidence*100);let lv='low',lb='参考';
     if(conf>=80){lv='high';lb='高度推荐';}else if(conf>=50){lv='medium';lb='可能推荐';}
     const _key=r.disease?(r.disease+'|'+r.pattern):r.pattern;
@@ -2326,6 +2451,7 @@ function loadStoredData(){
   try{const s=localStorage.getItem('tcm_herb_database_full');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length>0)HERB_DATABASE=d;}}catch(e){}
   try{const s=localStorage.getItem('tcm_formula_database');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length>0)FORMULA_DATABASE=d;}}catch(e){}
   try{const s=localStorage.getItem('tcm_synonym_map');if(s){const d=JSON.parse(s);SYNONYM_MAP={...DEFAULT_SYNONYM_MAP,...d};}else SYNONYM_MAP={...DEFAULT_SYNONYM_MAP};}catch(e){SYNONYM_MAP={...DEFAULT_SYNONYM_MAP};}
+rebuildAliasIndex();
   try{const s=localStorage.getItem('tcm_symptom_syndrome_map');if(s){const d=JSON.parse(s);if(d&&typeof d==='object')SYMPTOM_TO_SYNDROME_MAP=d;}}catch(e){SYMPTOM_TO_SYNDROME_MAP={};}
   try{const s=localStorage.getItem('tcm_herb_pairs');if(s){const d=JSON.parse(s);if(d&&typeof d==='object')HERB_PAIR_MAP=d;}}catch(e){HERB_PAIR_MAP={};}
   try{const s=localStorage.getItem('tcm_weight_table_raw');if(s){const d=JSON.parse(s);if(Array.isArray(d))WEIGHT_TABLE_RAW=d;}}catch(e){WEIGHT_TABLE_RAW=[];}
@@ -2616,7 +2742,11 @@ function getPatientInfo(){
 }
 
 /* ============ 同义词库 ============ */
-function saveSynonymMap(){localStorage.setItem('tcm_synonym_map',JSON.stringify(SYNONYM_MAP));}
+function saveSynonymMap(){
+  localStorage.setItem('tcm_synonym_map',JSON.stringify(SYNONYM_MAP));
+  _normalizeCache.clear();
+  rebuildAliasIndex();
+}
 function renderSynonymTable(filter){
   const tbody=document.getElementById('synonymTableBody');if(!tbody)return;
   tbody.innerHTML='';filter=filter||'';
@@ -3732,7 +3862,7 @@ function clearAllPrescriptionHistory(){
 function saveDailySession(){
   const pid=getCurrentPatientId();
   if(!pid||pid==='未分配ID')return;
-  const s={timestamp:Date.now(),chiefComplaint:document.getElementById('chiefComplaint').value,symptoms:getSelectedSymptoms(),tongue:getCategorySelectedStrings(TONGUE_CATEGORY),pulse:getCategorySelectedStrings(PULSE_CATEGORY),medicalHistory:medicalHistoryItems.slice(),allergyHistory:allergyHistoryItems.slice(),isVegetarian:isVegetarian,selectedPatterns:Array.from(selectedPatterns),activeHistoryPatterns:Array.from(activeHistoryPatterns),results:window.CURRENT_RESULTS||[]};
+  const s={timestamp:Date.now(),chiefComplaint:document.getElementById('chiefComplaint').value,symptoms:getSelectedSymptoms(),tongue:getCategorySelectedStrings(TONGUE_CATEGORY),pulse:getCategorySelectedStrings(PULSE_CATEGORY),medicalHistory:medicalHistoryItems.slice(),allergyHistory:allergyHistoryItems.slice(),isVegetarian:isVegetarian,selectedPatterns:Array.from(selectedPatterns),activeHistoryPatterns:Array.from(activeHistoryPatterns),results:(window.CURRENT_RESULTS||[]).slice(0,80)};
   const all=JSON.parse(localStorage.getItem('tcm_daily_session')||'{}');
   all[pid]=s;localStorage.setItem('tcm_daily_session',JSON.stringify(all));
   try{

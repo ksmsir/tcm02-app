@@ -759,14 +759,14 @@ function isFuzzyMatch(a,b){if(!a||!b)return false;if(a===b)return true;const d=l
 function splitByCommaTopLevel(str){const result=[];let cur='';let depth=0;for(let i=0;i<str.length;i++){const ch=str[i];if(ch==='<'){depth++;cur+=ch;continue;}if(ch==='>'){depth--;cur+=ch;continue;}if((ch===','||ch==='，'||ch==='、')&&depth===0){if(cur.trim())result.push(cur.trim());cur='';continue;}cur+=ch;}if(cur.trim())result.push(cur.trim());return result;}
 function parseCompoundLabel(rawLabel,defaultFirst,defaultSecond){
   const results=[];const label=(rawLabel||'').trim();if(!label)return results;
-  const bm=label.match(/^([^\[\]]*)\[(.*)\]$/);
+  const bm=label.match(/^([^\[\]【】［］〔〕〖〗〘〙〚]+?)\s*[\[【［〔〖〘〚]\s*([\s\S]+?)\s*[\]】］〕〗〙〛]$/);
   if(!bm){
-    const pm=label.match(/^([^<]*?)<([^>]*)>$/);
+    const pm=label.match(/^([^<>〈〉《》⟨⟩❮❯]+?)\s*[<〈《⟨❮]\s*([\s\S]+?)\s*[>〉》⟩❯]$/);
     if(pm){const parent=pm[1].trim(),mods=pm[2].trim();
       if(parent&&mods){mods.split(/[，,、]/).map(s=>s.trim()).filter(Boolean).forEach(m=>{m.split('/').map(s=>s.trim()).filter(Boolean).forEach(sm=>{results.push({label:parent+sm,first:defaultFirst||'其他',second:defaultSecond||'其他',precondition:'',parent,modifier:sm,type:'pair'});});});return results;}
       if(parent&&!mods){results.push({label:parent,first:defaultFirst||'其他',second:defaultSecond||'其他',precondition:'',parent,modifier:'',type:'pair'});return results;}
     }
-    const clean=label.replace(/[<>\[\]]/g,'').trim()||label;
+    const clean=label.replace(/[<>〈〉《》⟨⟩❮❯\[\]【】［］〔〕〖〗〘〙〚〛（）()｛｝{}]/g,'').trim()||label;
     results.push({label:clean,first:defaultFirst||'其他',second:defaultSecond||'其他',precondition:'',parent:'',modifier:'',type:'direct'});
     return results;
   }
@@ -869,73 +869,99 @@ function splitTopLevelCompound(str){
   return parts;
 }
 
+/* ===== 括号剥离与结构化解析 ===== */
+const _ALL_BRK_STRIP = /[<>〈〉《》⟨⟩❮❯\[\]【】［］〔〕〖〗〘〙〚〛（）()｛｝{}]/g;
+const _L_EXC_RE = '[^<>〈〉《》⟨⟩❮❯\\[\\]【】［］〔〕〖〗〘〙〚〛（）()｛｝{}]';
+const _SQR_L = '[\\[【［〔〖〘〚]';
+const _SQR_R = '[\\]】］〕〗〙〛]';
+const _ANG_L = '[<〈《⟨❮]';
+const _ANG_R = '[>〉》⟩❯]';
+
+const _outerRe     = new RegExp('^(' + _L_EXC_RE + '+?)\\s*' + _SQR_L + '\\s*([\\s\\S]+?)\\s*' + _SQR_R + '\\s*(.*)$');
+const _innerAngRe  = new RegExp('^(' + _L_EXC_RE + '+?)\\s*' + _ANG_L + '\\s*([\\s\\S]+?)\\s*' + _ANG_R + '\\s*$');
+const _outerAngRe  = new RegExp('^(' + _L_EXC_RE + '+?)\\s*' + _ANG_L + '\\s*([\\s\\S]+?)\\s*' + _ANG_R + '\\s*(.*)$');
+
 function parseCompoundStructured(text){
   if (!text) return [];
   const result = [];
-  /* ★ 所有需要剥离的括号字符（中英文全角半角）*/
-  const STRIP = /[<>〈〉《》\[\]【】（）()]/g;
 
   splitTopLevelCompound(String(text)).forEach(function(part){
     part = part.trim();
     if (!part) return;
 
-    /* 外层方括号：X[...] 或 X【...】 */
-    const outerMatch = part.match(/^([^\[\]【】<>〈〉《》]+?)\s*[\[【]\s*(.+?)\s*[\]】]$/);
+    /* 形式 A：前提[X] 或 前提[X]尾部 */
+    const outerMatch = part.match(_outerRe);
     if (outerMatch) {
-      const pre = outerMatch[1].replace(STRIP, '').trim();
-      splitTopLevelCompound(outerMatch[2]).forEach(function(ip){
+      const pre  = outerMatch[1].replace(_ALL_BRK_STRIP, '').trim();
+      const inner = outerMatch[2];
+      const tail = (outerMatch[3] || '').trim();
+      splitTopLevelCompound(inner).forEach(function(ip){
         ip = ip.trim();
         if (!ip) return;
-        /* 内层尖括号：Y<...> 或 Y〈...〉 或 Y《...》 */
-        const ym = ip.match(/^([^<>〈〉《》\[\]【】]+?)\s*[<〈《]\s*(.+?)\s*[>〉》]$/);
+        const ym = ip.match(_innerAngRe);
         if (ym) {
-          const parent = ym[1].replace(STRIP, '').trim();
+          const parent = ym[1].replace(_ALL_BRK_STRIP, '').trim();
           splitTopLevelCompound(ym[2]).forEach(function(mod){
-            const cleanMod = mod.replace(STRIP, '').trim();
+            const cleanMod = mod.replace(_ALL_BRK_STRIP, '').trim();
             if (!cleanMod) return;
             result.push({
               pre: pre,
               parent: parent,
               mod: cleanMod,
-              label: (pre + parent + cleanMod).replace(STRIP, '')
+              label: (pre + parent + cleanMod).replace(_ALL_BRK_STRIP, '')
             });
           });
         } else {
-          const cleanIp = ip.replace(STRIP, '').trim();
+          const cleanIp = ip.replace(_ALL_BRK_STRIP, '').trim();
           if (cleanIp) {
             result.push({
               pre: pre,
               parent: cleanIp,
               mod: '',
-              label: (pre + cleanIp).replace(STRIP, '')
+              label: (pre + cleanIp).replace(_ALL_BRK_STRIP, '')
             });
           }
         }
       });
+      if (tail) {
+        splitTopLevelCompound(tail).forEach(function(t){
+          const ct = t.replace(_ALL_BRK_STRIP, '').trim();
+          if (ct) result.push({ pre: '', parent: ct, mod: '', label: ct });
+        });
+      }
       return;
     }
 
-    /* 外层尖括号：Y<...> 或 Y〈...〉 或 Y《...》 */
-    const ym2 = part.match(/^([^<>〈〉《》\[\]【】]+?)\s*[<〈《]\s*(.+?)\s*[>〉》]$/);
+    /* 形式 B：父<修饰词1, 修饰词2> 或 父〈...〉 或 父⟨...⟩ */
+    const ym2 = part.match(_outerAngRe);
     if (ym2) {
-      const parent = ym2[1].replace(STRIP, '').trim();
-      splitTopLevelCompound(ym2[2]).forEach(function(mod){
-        const cleanMod = mod.replace(STRIP, '').trim();
+      const parent = ym2[1].replace(_ALL_BRK_STRIP, '').trim();
+      const inner  = ym2[2];
+      const tail   = (ym2[3] || '').trim();
+      splitTopLevelCompound(inner).forEach(function(mod){
+        const cleanMod = mod.replace(_ALL_BRK_STRIP, '').trim();
         if (!cleanMod) return;
         result.push({
           pre: '',
           parent: parent,
           mod: cleanMod,
-          label: (parent + cleanMod).replace(STRIP, '')
+          label: (parent + cleanMod).replace(_ALL_BRK_STRIP, '')
         });
       });
+      if (tail) {
+        splitTopLevelCompound(tail).forEach(function(t){
+          const ct = t.replace(_ALL_BRK_STRIP, '').trim();
+          if (ct) result.push({ pre: '', parent: ct, mod: '', label: ct });
+        });
+      }
       return;
     }
 
-    /* 独立症状：剥离所有括号 */
-    const clean = part.replace(STRIP, '').trim();
+    /* 形式 C：纯文本，剥掉所有括号 */
+    const clean = part.replace(_ALL_BRK_STRIP, '').trim();
     if (clean) result.push({ pre: '', parent: clean, mod: '', label: clean });
   });
+
   return result;
 }
 

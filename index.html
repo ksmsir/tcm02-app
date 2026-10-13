@@ -1003,6 +1003,12 @@ function getStructuredSelectedSymptoms(){
 
 function matchStructured(patient, kb, mode){
   if (!patient || !kb) return false;
+
+  /* ★ label 完全一致直接判匹配（对所有模式生效） */
+  const pl = patient.label || '';
+  const kl = kb.label || '';
+  if (pl && kl && pl === kl) return true;
+
   if (mode === 'strict') {
     if ((patient.parent || '') !== (kb.parent || '')) return false;
     if ((patient.pre || '') !== (kb.pre || '')) return false;

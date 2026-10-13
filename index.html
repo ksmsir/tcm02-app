@@ -581,7 +581,20 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f4f8;padd
   <div class="splitter-vertical" id="splitterVertical"></div>
 
   <div class="card" id="rightCard">
-    <div class="card-header"><span>📊 辨证结果 & 历史确诊</span><span class="badge" id="resultCount">等待输入</span></div>
+    <div class="card-header" style="flex-wrap:wrap;gap:6px;">
+  <span>📊 辨证结果 & 历史确诊</span>
+  <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+    <label style="font-size:12px;font-weight:500;color:#5b748b;display:flex;align-items:center;gap:4px;margin:0;">
+      匹配：
+      <select id="matchModeSelect" title="选择辨证匹配模式" style="border:1px solid #d5dee8;border-radius:6px;padding:2px 6px;font-size:12px;background:#fff;color:#2c4b6a;cursor:pointer;">
+        <option value="strict">严格（精准）</option>
+        <option value="normal" selected>标准（推荐）</option>
+        <option value="loose">宽松（防漏）</option>
+      </select>
+    </label>
+    <span class="badge" id="resultCount">等待输入</span>
+  </span>
+</div>
     <div class="right-content">
       <div class="result-area-wrapper" id="resultWrapper">
         <div class="history-diagnosis" id="historyDiagnosis">
@@ -1706,40 +1719,58 @@ document.getElementById('isVegetarian').addEventListener('change',function(){isV
 
 /* ============ 辨证引擎 ============ */
 function inferPatterns(symptoms){
-  const normSymptoms=symptoms.map(s=>normalizeTerm(s));
-  const results=[];
-  for(const item of KNOWLEDGE_BASE){
-    const np=(item.primary||[]).map(p=>normalizeTerm(p));
-    const ns=(item.secondary||[]).map(s=>normalizeTerm(s));
-    const matchedP=[];
-    for(const p of np){
-      if(normSymptoms.some(s=>{
-        if(!s||!p) return false;
-        if(s===p) return true;
-        if(s.length>=3 && s.includes(p)) return true;
-        if(p.length>=3 && p.includes(s)) return true;
-        return isFuzzyMatch(s,p);
-      })) matchedP.push(p);
-    }
-    const matchedS=[];
-    for(const s of ns){
-      if(normSymptoms.some(sym=>{
-        if(!sym||!s) return false;
-        if(sym===s) return true;
-        if(sym.length>=3 && sym.includes(s)) return true;
-        if(s.length>=3 && s.includes(sym)) return true;
-        return isFuzzyMatch(sym,s);
-      })) matchedS.push(s);
-    }
-    const pRate=np.length>0?matchedP.length/np.length:0;
-    const sRate=ns.length>0?matchedS.length/ns.length:0;
-    const w=item.weights||{primary:60,secondary:20,tongue:10,pulse:10};
-    let conf=pRate*(w.primary/(w.primary+w.secondary))+sRate*(w.secondary/(w.primary+w.secondary));
-    if(pRate<0.2)conf*=0.4;
-    if(conf>0.05)results.push({disease:item.disease,pattern:item.pattern,confidence:Math.min(conf,1.0),pRate,sRate,matchedP,totalP:np,matchedS,totalS:ns,historyBoost:1.0});
+  const normSymptoms = symptoms.map(s => normalizeTerm(s));
+  const mode = getMatchMode();
+
+  /* 判断两个症状是否算"匹配"（根据当前模式）*/
+  function isMatch(a, b){
+    if(!a || !b) return false;
+    if(a === b) return true;
+
+    /* 长词包含匹配：3 字以上才允许（所有模式都启用） */
+    if(a.length >= 3 && a.includes(b)) return true;
+    if(b.length >= 3 && b.includes(a)) return true;
+
+    /* 模糊匹配：根据模式 */
+    if(mode === 'strict') return false;
+    const dist = levenshteinDistance(a, b);
+    const maxLen = Math.max(a.length, b.length);
+    if(maxLen <= 3) return false;      /* 3 字以内不允许模糊 */
+    if(mode === 'loose') return dist <= 2;
+    /* normal */
+    return dist <= 1;
   }
-  applyHistoryWeight(results,medicalHistoryItems);
-  results.sort((a,b)=>b.confidence-a.confidence);
+
+  const results = [];
+  for(const item of KNOWLEDGE_BASE){
+    const np = (item.primary   || []).map(p => normalizeTerm(p)).filter(Boolean);
+    const ns = (item.secondary || []).map(s => normalizeTerm(s)).filter(Boolean);
+
+    const matchedP = [];
+    for(const p of np){
+      if(normSymptoms.some(s => isMatch(s, p))) matchedP.push(p);
+    }
+    const matchedS = [];
+    for(const s of ns){
+      if(normSymptoms.some(sym => isMatch(sym, s))) matchedS.push(s);
+    }
+
+    const pRate = np.length > 0 ? matchedP.length / np.length : 0;
+    const sRate = ns.length > 0 ? matchedS.length / ns.length : 0;
+    const w = item.weights || {primary:60, secondary:20, tongue:10, pulse:10};
+    let conf = pRate * (w.primary/(w.primary+w.secondary)) + sRate * (w.secondary/(w.primary+w.secondary));
+    if(pRate < 0.2) conf *= 0.4;
+    if(conf > 0.05) results.push({
+      disease: item.disease, pattern: item.pattern,
+      confidence: Math.min(conf, 1.0),
+      pRate, sRate,
+      matchedP, totalP: np,
+      matchedS, totalS: ns,
+      historyBoost: 1.0
+    });
+  }
+  applyHistoryWeight(results, medicalHistoryItems);
+  results.sort((a, b) => b.confidence - a.confidence);
   return results;
 }
 function applyHistoryWeight(results,historyItems){
@@ -1770,7 +1801,8 @@ function runDiagnosis(){
 }
 function displayResults(results){
   const area=document.getElementById('resultArea');
-  document.getElementById('resultCount').textContent='找到 '+results.length+' 个候选证型';
+  const modeLabel = {strict:'严格', normal:'标准', loose:'宽松'}[getMatchMode()] || '标准';
+document.getElementById('resultCount').textContent = '找到 ' + results.length + ' 个候选证型 [' + modeLabel + '模式]';
   if(!results.length){area.innerHTML='<div class="empty-state">无匹配证型</div>';return;}
   let html='';
   results.forEach(r=>{
@@ -1815,6 +1847,32 @@ function displayResults(results){
     });
   });
   renderHistoryDiagnosis();updatePatternCountDisplay();
+}
+/* ============ 辨证匹配模式（医生可选）============ */
+const MATCH_MODE_KEY = 'tcm_match_mode';
+
+function getMatchMode(){
+  const m = localStorage.getItem(MATCH_MODE_KEY);
+  return ['strict','normal','loose'].indexOf(m) >= 0 ? m : 'normal';
+}
+function setMatchMode(m){
+  if(['strict','normal','loose'].indexOf(m) < 0) return;
+  localStorage.setItem(MATCH_MODE_KEY, m);
+  if(typeof showToast === 'function'){
+    const label = {strict:'严格模式（完全一致）', normal:'标准模式（允许1字差）', loose:'宽松模式（允许2字差）'}[m];
+    showToast('🔍 匹配模式已切换为：' + label);
+  }
+  /* 如果已有辨证结果，自动重新辨证 */
+  try{
+    if(typeof CURRENT_RESULTS !== 'undefined' && CURRENT_RESULTS && CURRENT_RESULTS.length > 0){
+      const syms = getSymptomsForDiagnosis();
+      if(syms.length > 0){
+        const results = inferPatterns(syms);
+        CURRENT_RESULTS = results;
+        displayResults(results);
+      }
+    }
+  }catch(e){ console.warn('[match-mode] 重新辨证失败：', e); }
 }
 function updatePatternCountDisplay(){const el=document.getElementById('patternCountDisplay');if(el)el.textContent='激活 '+(selectedPatterns.size+activeHistoryPatterns.size)+' 个证型（当前 '+selectedPatterns.size+'，历史 '+activeHistoryPatterns.size+'）';}
 
@@ -2048,6 +2106,14 @@ function loadStoredData(){
   try{const s=localStorage.getItem('tcm_weight_table_raw');if(s){const d=JSON.parse(s);if(Array.isArray(d))WEIGHT_TABLE_RAW=d;}}catch(e){WEIGHT_TABLE_RAW=[];}
 }
 function init(){
+  /* 初始化匹配模式下拉 */
+  try{
+    const sel = document.getElementById('matchModeSelect');
+    if(sel){
+      sel.value = getMatchMode();
+      sel.addEventListener('change', function(){ setMatchMode(this.value); });
+    }
+  }catch(e){ console.warn('[init-match-mode]', e); }
   try{
     const pStatus=document.getElementById('pinyinStatus');
     if(pStatus){

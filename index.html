@@ -301,6 +301,36 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f4f8;padd
 .dose-hint-danger { background:#fdeceb; color:#c0392b; border-color:#f0b6b1; }
 .dose-hint-vague  { background:#f1f3f2; color:#6b7a72; border-color:#d6ddda; }
 
+/* ============ 专病靶向标签徽章 ============ */
+.target-badge-wrap{
+  display:inline-flex;
+  align-items:center;
+  gap:3px;
+  margin-left:2px;
+  font-size:11px;
+  vertical-align:middle;
+}
+.target-badge{
+  display:inline-block;
+  padding:0 6px;
+  border-radius:9px;
+  line-height:1.7;
+  font-size:11px;
+  white-space:nowrap;
+  border:1px solid transparent;
+}
+.target-badge.target-star{
+  background:#e6f7ed;
+  color:#166534;
+  border-color:#86efac;
+  font-weight:600;
+}
+.target-badge.target-hollow{
+  background:#f0f4f8;
+  color:#5b748b;
+  border-color:#cbd5e1;
+}
+
 /* 剂量详情弹窗表格 */
 .dose-detail-table{width:100%;border-collapse:collapse;font-size:13px;}
 .dose-detail-table th{background:#f0f4f8;padding:6px 8px;border:1px solid #d5dee8;text-align:left;font-weight:700;color:#2c4b6a;position:sticky;top:0;z-index:2;}
@@ -310,6 +340,15 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f4f8;padd
 .dose-detail-table tr.row-C{background:#fdf6e3;}
 .dose-detail-table tr.row-block{background:#fdeceb;}
 .dose-detail-table tr.row-vague{background:#f6f8f6;}
+/* ============ 剂量优先级徽章（doseDetailModal 使用） ============ */
+.bdg{display:inline-block;padding:0 7px;border-radius:9px;font-size:11px;font-weight:700;line-height:1.7;white-space:nowrap;vertical-align:middle;}
+.b-A{background:#e9f5ee;color:#166534;border:1px solid #b7d8c3;}
+.b-B{background:#eaf2f9;color:#1e40af;border:1px solid #a8c9e5;}
+.b-C{background:#fdf6e3;color:#a9740a;border:1px solid #e8d59a;}
+.b-D{background:#fdeceb;color:#c0392b;border:1px solid #f0b6b1;}
+.b-N{background:#f0f4f8;color:#5b748b;border:1px solid #cbd5e1;}
+.b-warn{background:#fdeceb;color:#c0392b;border:1px solid #f0b6b1;font-weight:700;}
+
 /* ============ 鉴别优选卡片 ============ */
 .diff-card{background:#fff;border-radius:6px;border-left:4px solid #d97706;padding:10px 12px;margin-top:10px;}
 .diff-title{font-weight:700;color:#92400e;font-size:13.5px;margin-bottom:6px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
@@ -464,7 +503,6 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f4f8;padd
       <button class="modal-close" onclick="closePrescription()" style="margin-left:4px;">&times;</button>
     </div>
     <div id="prescriptionBody" style="flex:1 1 auto;overflow-y:auto;min-height:0;padding-right:4px;"></div>
-    <div class="modal-footer" id="prescriptionFooter" style="display:none;"></div>
   </div>
 </div>
 
@@ -1731,7 +1769,7 @@ function loadBuiltinDiffRules(){
     /* ... 建议通过 Excel 导入完整 197 条，这里仅保留 2 条作为兜底 */
   ];
   try{ localStorage.setItem('tcm_herb_diff_rules', JSON.stringify(HERB_DIFFERENTIATION_RULES)); }catch(e){}
-  showToast('✅ 已载入内置鉴别规则（'+HERB_DIFFERENTIATION_RULES.length+' 组）建议通过 Excel 导入完整规则');
+  showToast('✅ 已载入内置鉴别规则 ' + HERB_DIFFERENTIATION_RULES.length + ' 组（演示）· 完整 197 组请用 Excel 导入');
   try{ updateStorageInfo(); }catch(e){}
 }
 /* ============ 剂量提示徽章 ============ */
@@ -3406,6 +3444,9 @@ function init(){
     makeModalDraggable('aiEvalModal');
     makeModalDraggable('aiHistoryModal');
     makeModalResizable('prescriptionModal');
+    makeModalDraggable('synonymModal');
+    makeModalDraggable('addTagModal');
+    makeModalDraggable('doseDetailModal');
   }catch(e){console.error('[init-5 分隔/弹窗]',e);}
   try{
     const pAge=document.getElementById('pAge');
@@ -3887,29 +3928,114 @@ function extractHerbsFromClassicFormula(mf){
   });
   return herbs;
 }
-function searchHerbsByEfficacy(syndromeName,method){
-  if(!HERB_DATABASE||HERB_DATABASE.length===0)return [];
-  const query=((syndromeName||'')+' '+(method||'')).trim();
-  if(!query)return [];
-  const text=query.replace(/[，,、；;：:（）()【】\[\]]/g,' ');
-  const tokens=text.split(/\s+/).filter(s=>s.length>=2);
-  const bigrams=new Set();
-  tokens.forEach(t=>{
-    const clean=t.replace(/[^\u4e00-\u9fa5]/g,'');
-    for(let i=0;i<clean.length-1;i++)bigrams.add(clean.slice(i,i+2));
-    if(clean.length>=2)bigrams.add(clean);
+/* ==========================================================
+   ★ 专病靶向标签解析工具（稳健版）
+   ========================================================== */
+
+/** 从单味药的记录中读取"专病靶向标签"字符串（兼容多种列名） */
+function getHerbTargetTags(herb){
+  if(!herb || typeof herb !== 'object') return '';
+  const pref = ['专病靶向标签','专病靶向','靶向标签','靶向'];
+  for(const p of pref){
+    if(herb[p] !== undefined && herb[p] !== null && String(herb[p]).trim() !== ''){
+      return String(herb[p]).trim();
+    }
+  }
+  const fuzzy = Object.keys(herb).find(k => /靶向/.test(k));
+  if(fuzzy && herb[fuzzy]) return String(herb[fuzzy]).trim();
+  return '';
+}
+
+/**
+ * 拆分靶向标签，逐条独立统计星级
+ * 支持分隔符：| ｜ 、 , ， ; ； 。 换行
+ * ★ 关键：每条标签的 ★/☆ 数量独立统计，绝不整串计数
+ */
+function parseTargetTags(targetStr){
+  if(!targetStr) return [];
+  return String(targetStr)
+    .split(/[|｜、,，;；。\n\r]+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(tag => {
+      const starCount   = (tag.match(/★/g) || []).length;
+      const hollowCount = (tag.match(/☆/g) || []).length;
+      const pureText    = tag.replace(/[★☆]/g, '').trim();
+      return { raw: tag, text: pureText, starCount, hollowCount };
+    })
+    .filter(t => t.text);
+}
+
+/** 命中某味药的靶向标签（用于 UI 徽章） */
+function getMatchedTargetTags(herb, bigrams){
+  const targetStr = getHerbTargetTags(herb);
+  if(!targetStr) return [];
+  const tags = parseTargetTags(targetStr);
+  return tags.filter(t => {
+    let hit = false;
+    bigrams.forEach(bg => { if(t.text.includes(bg)) hit = true; });
+    return hit;
   });
-  if(bigrams.size===0)return [];
-  const scored=[];
-  HERB_DATABASE.forEach(h=>{
-    const t=((h['功效']||'')+' '+(h['主治']||'')+' '+(h['基本功效']||'')).replace(/\s+/g,'');
-    if(!t)return;
-    let score=0;
-    bigrams.forEach(bg=>{if(t.includes(bg))score+=1;});
-    if(score>0)scored.push({herb:h,score});
+}
+
+/* ==========================================================
+   ★ 中药库功效检索（专病靶向优先）
+   权重说明：
+     单条靶向命中     → +100
+     该条含 ★        → 每条 ★ 再 +50
+     该条含 ☆        → 每条 ☆ 再 +20
+     证型名完整命中    → 再 +200（超级加分）
+     功效/主治兜底命中 → 每个 bigram +1
+   ========================================================== */
+function searchHerbsByEfficacy(syndromeName, method){
+  if(!HERB_DATABASE || HERB_DATABASE.length === 0) return [];
+  const query = ((syndromeName||'') + ' ' + (method||'')).trim();
+  if(!query) return [];
+
+  const cleanQuery = query.replace(/[，,、；;：:（）()【】\[\]]/g, ' ');
+  const tokens = cleanQuery.split(/\s+/).filter(s => s.length >= 2);
+  const bigrams = new Set();
+  tokens.forEach(t => {
+    const clean = t.replace(/[^\u4e00-\u9fa5]/g, '');
+    for(let i=0; i<clean.length-1; i++) bigrams.add(clean.slice(i, i+2));
+    if(clean.length >= 2) bigrams.add(clean);
   });
-  scored.sort((a,b)=>b.score-a.score);
-  return scored.slice(0,8).map(x=>x.herb);
+  if(bigrams.size === 0) return [];
+
+  const syndromeClean = String(syndromeName||'').replace(/[^\u4e00-\u9fa5]/g, '');
+
+  const scored = [];
+  HERB_DATABASE.forEach(h => {
+    let score = 0;
+
+    // 🌟 专病靶向：逐条拆分、逐条计数
+    const tags = parseTargetTags(getHerbTargetTags(h));
+    tags.forEach(tag => {
+      let hit = false;
+      bigrams.forEach(bg => { if(tag.text.includes(bg)) hit = true; });
+      if(!hit) return;
+
+      let tagScore = 100;
+      if(syndromeClean && syndromeClean.length >= 2 && tag.text.includes(syndromeClean)){
+        tagScore += 200;
+      }
+      tagScore += tag.starCount   * 50;
+      tagScore += tag.hollowCount * 20;
+      score += tagScore;
+    });
+
+    // 兜底：功效 / 主治 / 基本功效
+    const text = ((h['功效']||'') + ' ' + (h['主治']||'') + ' ' + (h['基本功效']||''))
+      .replace(/\s+/g, '');
+    if(text){
+      bigrams.forEach(bg => { if(text.includes(bg)) score += 1; });
+    }
+
+    if(score > 0) scored.push({ herb: h, score });
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 8).map(x => x.herb);
 }
 function getHerbPairsFor(herbName){
   if(!herbName)return {xiangxu:[],xiangshi:[],xiangwei:[],xiangfan:[]};
@@ -4186,23 +4312,62 @@ function renderMedicationAdvice(classicResults,fuzzyResults,duplicateHerbs,sympt
       if(r.syndromeName)html+='<span style="background:#ffedd5;color:#9a3412;padding:2px 10px;border-radius:12px;">'+esc(r.syndromeName)+'</span>';
       html+='<div style="margin-top:6px;font-size:13px;line-height:2;">';
       r.candidateHerbs.forEach(function(h){
-        const name=(h['品名']||h['药名']||'').trim();
-        const dosageText=getHerbDosageText(h);
-        const _formType = '汤剂';
-        const candidateFormulaName = '候选药';
-        const uid = name+'|'+_formType+'|'+dosageText+'|'+candidateFormulaName;
-        const isSel=selectedHerbs.some(function(x){
-          if(x.name!==name) return false;
-          if(normalizeFormType(x.formType)!==_formType) return false;
-          return (x.formulaName||'')===candidateFormulaName;
-        });
-        const sameNameOtherFormula = !isSel && selectedHerbs.some(function(x){
-          if(x.name!==name) return false;
-          return normalizeFormType(x.formType)===_formType;
-        });
-        const cls='herb-selectable herb-candidate '+(isSel?'selected':(sameNameOtherFormula?'herb-muted':''));
-        html+='<span class="'+cls+'" data-uid="'+esc(uid)+'" data-name="'+esc(name)+'" data-dosage="'+esc(dosageText)+'" data-category="候选" data-form-type="'+esc(_formType)+'" data-formula="'+esc(candidateFormulaName)+'" data-source="candidate">'+esc(name)+(dosageText?' '+esc(dosageText):'')+'</span>' + getDoseHintHTML(name) + ' ';
-      });
+  const name = (h['品名']||h['药名']||'').trim();
+  const dosageText = getHerbDosageText(h);
+
+  // ★ 计算命中的靶向标签（用于 UI 展示推荐理由）
+  const targetTags = parseTargetTags(getHerbTargetTags(h));
+  const queryBigrams = (function(){
+    const kw = ((r.syndromeName||'') + ' ' + ((r.methods||[]).join('，'))).trim();
+    const clean = kw.replace(/[，,、；;：:（）()【】\[\]]/g,' ');
+    const toks = clean.split(/\s+/).filter(s => s.length >= 2);
+    const bg = new Set();
+    toks.forEach(t => {
+      const c = t.replace(/[^\u4e00-\u9fa5]/g,'');
+      for(let i=0;i<c.length-1;i++) bg.add(c.slice(i,i+2));
+      if(c.length>=2) bg.add(c);
+    });
+    return bg;
+  })();
+  const hitTags = targetTags.filter(tag => {
+    let hit = false;
+    queryBigrams.forEach(bg => { if(tag.text.includes(bg)) hit = true; });
+    return hit;
+  });
+
+  // 靶向标签徽章 HTML
+  let targetBadges = '';
+  if(hitTags.length > 0){
+    const badges = hitTags.slice(0, 3).map(t => {
+      const star = t.starCount > 0 ? '★'.repeat(Math.min(t.starCount, 3)) : '☆'.repeat(Math.min(t.hollowCount, 2));
+      const cls2 = t.starCount > 0 ? 'target-star' : 'target-hollow';
+      return '<span class="target-badge ' + cls2 + '" title="专病靶向命中：' + esc(t.raw) + '">' +
+             esc(t.text) + (star ? ' ' + star : '') + '</span>';
+    }).join('');
+    targetBadges = '<span class="target-badge-wrap" title="该药在“专病靶向标签”列命中当前病证">' +
+                   '🎯 ' + badges + '</span>';
+  }
+
+  const _formType = '汤剂';
+  const candidateFormulaName = '候选药';
+  const uid = name + '|' + _formType + '|' + dosageText + '|' + candidateFormulaName;
+  const isSel = selectedHerbs.some(function(x){
+    if(x.name !== name) return false;
+    if(normalizeFormType(x.formType) !== _formType) return false;
+    return (x.formulaName||'') === candidateFormulaName;
+  });
+  const sameNameOtherFormula = !isSel && selectedHerbs.some(function(x){
+    if(x.name !== name) return false;
+    return normalizeFormType(x.formType) === _formType;
+  });
+  const cls = 'herb-selectable herb-candidate ' + (isSel ? 'selected' : (sameNameOtherFormula ? 'herb-muted' : ''));
+
+  html += '<span class="' + cls + '" data-uid="' + esc(uid) + '" data-name="' + esc(name) +
+          '" data-dosage="' + esc(dosageText) + '" data-category="候选" data-form-type="' + esc(_formType) +
+          '" data-formula="' + esc(candidateFormulaName) + '" data-source="candidate">' +
+          esc(name) + (dosageText ? ' ' + dosageText : '') + '</span>' +
+          getDoseHintHTML(name) + targetBadges + ' ';
+});
       html+='</div></div>';
     });
     html+='</div>';

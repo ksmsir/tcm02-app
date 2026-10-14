@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="中医辨证">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
-<title>中医辅助辨证 · 完整版（含AI评估）</title>
+<title>中医辅助辨证 · 完整版（含AI评估+剂量规则）</title>
 <script>
 (function(){
   var sources=['pinyin-pro.min.js','https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js','https://unpkg.com/pinyin-pro@3.26.0/dist/index.js'];
@@ -276,6 +276,54 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f4f8;padd
 .btn-select-all-formula{background:#e0e7ff;color:#4338ca;border:1px solid #c7d2fe;padding:1px 10px;border-radius:12px;font-size:11.5px;cursor:pointer;font-weight:600;transition:all .15s;line-height:1.6;margin-left:2ch;user-select:none}
 .btn-select-all-formula:hover{background:#4338ca;color:#fff;border-color:#4338ca;box-shadow:0 2px 6px rgba(67,56,202,.3)}
 .btn-select-all-formula:active{transform:scale(.96)}
+
+/* ============ 剂量提示徽章 ============ */
+.herb-dose-hint{
+  display:inline-block;
+  padding:1px 8px;
+  border-radius:10px;
+  font-size:11.5px;
+  font-weight:600;
+  line-height:1.6;
+  margin-left:2px;
+  margin-right:2px;
+  cursor:pointer;
+  user-select:none;
+  transition:transform .12s, box-shadow .12s;
+  vertical-align:middle;
+  white-space:nowrap;
+  border:1px solid transparent;
+}
+.herb-dose-hint:hover{ transform:translateY(-1px); box-shadow:0 2px 6px rgba(0,0,0,.12); }
+.dose-hint-info   { background:#eaf3ee; color:#2f6b4f; border-color:#b7d8c3; }
+.dose-hint-dose   { background:#eaf2f9; color:#2c6fa8; border-color:#a8c9e5; }
+.dose-hint-warn   { background:#fdf6e3; color:#a9740a; border-color:#e8d59a; }
+.dose-hint-danger { background:#fdeceb; color:#c0392b; border-color:#f0b6b1; }
+.dose-hint-vague  { background:#f1f3f2; color:#6b7a72; border-color:#d6ddda; }
+
+/* 剂量详情弹窗表格 */
+.dose-detail-table{width:100%;border-collapse:collapse;font-size:13px;}
+.dose-detail-table th{background:#f0f4f8;padding:6px 8px;border:1px solid #d5dee8;text-align:left;font-weight:700;color:#2c4b6a;position:sticky;top:0;z-index:2;}
+.dose-detail-table td{padding:6px 8px;border:1px solid #e2e8e3;vertical-align:top;}
+.dose-detail-table tr.row-A{background:#e9f5ee;}
+.dose-detail-table tr.row-B{background:#eaf2f9;}
+.dose-detail-table tr.row-C{background:#fdf6e3;}
+.dose-detail-table tr.row-block{background:#fdeceb;}
+.dose-detail-table tr.row-vague{background:#f6f8f6;}
+/* ============ 鉴别优选卡片 ============ */
+.diff-card{background:#fff;border-radius:6px;border-left:4px solid #d97706;padding:10px 12px;margin-top:10px;}
+.diff-title{font-weight:700;color:#92400e;font-size:13.5px;margin-bottom:6px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+.diff-shared{font-size:12.5px;color:#166534;margin-bottom:4px;padding:4px 8px;background:#f0fdf4;border-radius:4px;}
+.diff-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;}
+.diff-table th{padding:5px 8px;border:1px solid #fcd34d;text-align:left;background:#fef3c7;color:#92400e;font-weight:700;}
+.diff-table td{padding:5px 8px;border:1px solid #fde68a;vertical-align:top;}
+.diff-table tr.diff-pref{background:#e9f5ee;}
+.diff-badge-pref{font-size:11px;background:#27ae60;color:#fff;padding:1px 7px;border-radius:10px;margin-left:4px;font-weight:600;}
+.diff-conclusion{margin-top:8px;padding:7px 10px;background:#e9f5ee;border-radius:5px;font-size:12.5px;color:#166534;line-height:1.6;}
+.diff-conclusion-soft{margin-top:8px;padding:7px 10px;background:#fef9e7;border-radius:5px;font-size:12.5px;color:#8a6d3b;line-height:1.6;}
+.diff-note{margin-top:6px;font-size:12px;color:#7a8a9a;font-style:italic;line-height:1.5;}
+.diff-sym{display:inline-block;background:#d1fae5;color:#065f46;padding:0 7px;border-radius:8px;font-size:11.5px;margin:0 2px;}
+
 /* ============ 移动端适配 ============ */
 @media (max-width: 820px) {
   body { padding: 6px !important; height: auto !important; overflow: auto !important; }
@@ -319,6 +367,31 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f4f8;padd
   .rx-title { font-size: 20px; letter-spacing: 6px; }
   .prescription-drug-item { margin-right: 2ch !important; }
   #symptomDataWarning { font-size: 12.5px; padding: 8px 12px; }
+  .herb-dose-hint{ font-size:11px; padding:1px 6px; }
+  /* ➕ 新增：压缩症状分类间距，方便手机滑动 */
+  .symptom-group {
+    margin-bottom: 8px !important; /* 减小分组卡片间的下间距 */
+    padding: 8px 10px !important;   /* 减小分组卡片的内边距 */
+  }
+  .symptom-group-title {
+    margin-bottom: 6px !important;  /* 减小标题下方间距 */
+    padding: 3px 10px !important;
+    font-size: 13px !important;
+  }
+  .symptom-subgroup-title {
+    margin: 6px 0 4px 2px !important;
+    padding: 2px 10px !important;
+  }
+  .precondition-subtitle {
+    margin: 4px 0 2px 8px !important;
+    padding: 2px 8px !important;
+  }
+  .symptom-grid {
+    gap: 4px 8px !important;        /* 减小标签之间的行列间距 */
+    padding-left: 4px !important;
+    margin-top: 2px !important;
+    margin-bottom: 4px !important;
+  }
 }
 @media (hover: none) {
   .symptom-tag:hover { transform: none !important; }
@@ -408,6 +481,20 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f4f8;padd
   </div>
 </div>
 
+<!-- ★ 新增：剂量详情弹窗 -->
+<div class="modal-overlay" id="doseDetailModal">
+  <div class="modal-box" style="max-width:820px;max-height:85vh;">
+    <div class="modal-header">
+      <h2 id="doseDetailTitle">⚖ 剂量-效应详情</h2>
+      <button class="modal-close" onclick="closeDoseDetail()">&times;</button>
+    </div>
+    <div id="doseDetailBody" style="max-height:65vh;overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeDoseDetail()">关闭</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="aiEvalModal">
   <div class="modal-box" style="max-width:940px;">
     <div class="modal-header" id="aiEvalHeader">
@@ -446,7 +533,7 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f4f8;padd
     <div class="ai-stream" id="aiEvalBody">
       <div style="color:#95a5a6;text-align:center;padding:40px 10px;">
         点击「▶ 开始评估」，AI 将读取当前诊疗单内容并按六个维度进行深度评估。<br>
-        <span style="font-size:12.5px;">（请先确保已填写患者信息、症状、舌脉、诊断与用药）</span>
+        <span style="font-size:12.5px;">（评估会自动带上每味药的剂量规则摘要）</span>
       </div>
     </div>
   </div>
@@ -567,6 +654,30 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f4f8;padd
               <button class="btn btn-secondary btn-sm" onclick="document.getElementById('importFormulaDatabase').click()">导入</button>
               <input type="file" id="importFormulaDatabase" accept=".xlsx,.xls,.xlsm" style="display:none" onchange="importFormulaDatabase(event)">
             </div>
+            <!-- ★ 新增：剂量效应规则 -->
+            <div class="group-label">🔬 鉴别用药规则</div>
+            <div class="menu-item">
+              <button class="btn btn-secondary btn-sm" onclick="exportDiffRulesExcel()">导出鉴别规则</button>
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('importDiffRuleFile').click()">导入鉴别规则</button>
+            </div>
+            <input type="file" id="importDiffRuleFile" accept=".xlsx,.xls,.xlsm,.json" style="display:none" onchange="importDiffRulesExcel(event)">
+            <div class="menu-item">
+              <button class="btn btn-info btn-sm" onclick="loadBuiltinDiffRules()">载入内置规则</button>
+              <button class="btn btn-danger btn-sm" onclick="clearDiffRules()">清空规则</button>
+            </div>
+            <div class="group-label">⚖ 剂量效应规则</div>
+            <div class="menu-item">
+              <button class="btn btn-secondary btn-sm" onclick="exportDoseRules()">导出规则</button>
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('importDoseRuleFile').click()">导入规则</button>
+            </div>
+            <input type="file" id="importDoseRuleFile" accept=".xlsx,.xls,.xlsm,.json" style="display:none" onchange="importDoseRuleTable(event)">
+                        <div class="menu-item">
+              <button class="btn btn-info btn-sm" onclick="loadBuiltinDoseRules()">载入内置规则</button>
+              <button class="btn btn-danger btn-sm" onclick="clearDoseRules()">清空规则</button>
+            </div>
+            <div class="menu-item">
+              <button class="btn btn-secondary btn-sm" onclick="debugDoseMatch()">🔍 调试匹配</button>
+            </div>
             <div class="group-label">🔧 工具</div>
             <div class="menu-item">
               <button class="btn btn-secondary btn-sm" onclick="openSynonymModal()">📝 同义词库</button>
@@ -646,6 +757,9 @@ let SYMPTOM_TO_SYNDROME_MAP={};
 let HERB_PAIR_MAP={};
 let WEIGHT_TABLE_RAW=[];
 
+/* ★ 新增：剂量效应规则库 {药名: [规则, ...]} */
+let DOSE_EFFECT_RULES={};
+
 const TONGUE_CATEGORY='舌诊';
 const PULSE_CATEGORY='脉诊';
 const WEIGHT_TABLE_FORMULA_COL=10;
@@ -692,13 +806,278 @@ const FORM_TYPE_NOTES = {
   '茶剂':'沸水冲泡代茶饮，每日1-2剂，可反复冲泡。⚠️ 沸水冲泡，不煎煮。'
 };
 
+/* ==========================================================
+   ★★★ 内置默认剂量-效应规则（源自《中药用量不同效用有别》）
+   结构：{ 药名: [ {min,max,raw,level,effect,indication,condition,risk,priority,auto,block,tags,note}, ... ] }
+   ========================================================== */
+const BUILTIN_DOSE_RULES = {
+  "柴胡":[
+    {min:"2",max:"5",raw:"2～5g",level:"小",effect:"升举阳气",indication:"中气下陷、清阳不升",condition:"配升麻、黄芪",risk:"肝阳上亢、阴虚火旺慎用",priority:"A",auto:"Y",block:"N",tags:"柴胡|升阳|小剂量",note:""},
+    {min:"5",max:"10",raw:"5～10g",level:"常用",effect:"疏肝解郁",indication:"肝郁气滞、胸胁胀痛",condition:"醋炙、配白芍",risk:"肝阳上亢慎用",priority:"A",auto:"Y",block:"N",tags:"柴胡|疏肝|中剂量",note:""},
+    {min:"10",max:"30",raw:"10～30g",level:"大",effect:"解肌退热",indication:"外感发热、寒热往来",condition:"生用、配黄芩",risk:"阴虚火旺慎用",priority:"A",auto:"Y",block:"N",tags:"柴胡|解热|大剂量",note:""},
+    {min:"30",max:"112",raw:"半斤约112g，一剂三服",level:"超大",effect:"解表透邪（小柴胡汤原方）",indication:"少阳证",condition:"一剂分三服，须有柴胡证",risk:"无柴胡证禁用",priority:"C",auto:"仅医师",block:"N",tags:"柴胡|112g|小柴胡汤",note:"仲景原方量，须严格辨证"}
+  ],
+  "桂枝":[
+    {min:"",max:"5",raw:"不到5g",level:"小",effect:"温通阳气、助膀胱气化",indication:"蓄水证、小便不利",condition:"五苓散",risk:"温热病、阴虚火旺忌用",priority:"A",auto:"Y",block:"N",tags:"桂枝|小于5g|温通阳气|五苓散",note:""},
+    {min:"9",max:"9",raw:"9g",level:"常用",effect:"温经散寒、解肌发表",indication:"外感风寒表证",condition:"桂枝汤",risk:"温热病、阴虚火旺忌用",priority:"A",auto:"Y",block:"N",tags:"桂枝|9g|解肌发表|桂枝汤",note:""}
+  ],
+  "升麻":[
+    {min:"",max:"6",raw:"6g以下",level:"小",effect:"清热解毒",indication:"热毒疮疡、咽喉肿痛",condition:"生用",risk:"阴虚火旺慎用",priority:"B",auto:"Y",block:"N",tags:"升麻|小于6g|清热解毒",note:""},
+    {min:"3",max:"10",raw:"3～10g",level:"常用",effect:"发表透疹、升阳举陷",indication:"风热头痛、中气下陷、斑疹不出",condition:"—",risk:"阴虚火旺慎用",priority:"A",auto:"Y",block:"N",tags:"升麻|3-10g|透疹|升阳",note:""},
+    {min:"10",max:"",raw:"10g以上",level:"大",effect:"升阳举陷",indication:"中气下陷、久泻脱肛",condition:"配柴胡、黄芪",risk:"阴虚火旺慎用",priority:"B",auto:"Y",block:"N",tags:"升麻|大于10g|升阳举陷",note:""},
+    {min:"30",max:"30",raw:"30g",level:"超大",effect:"治面神经麻痹",indication:"面神经麻痹",condition:"报道",risk:"需医师评估",priority:"C",auto:"仅医师",block:"N",tags:"升麻|30g|面神经麻痹",note:"个案报道，证据等级低"}
+  ],
+  "薄荷":[
+    {min:"3",max:"3",raw:"3g",level:"小",effect:"疏达肝木",indication:"肝郁气滞",condition:"逍遥散",risk:"体虚多汗慎用",priority:"A",auto:"Y",block:"N",tags:"薄荷|3g|疏肝|逍遥散",note:""},
+    {min:"15",max:"15",raw:"15g",level:"大",effect:"发散风热、清利头目",indication:"风热上攻头目",condition:"苍耳子散",risk:"体虚多汗慎用",priority:"A",auto:"Y",block:"N",tags:"薄荷|15g|发散风热|清利头目",note:""}
+  ],
+  "蝉蜕":[
+    {min:"5",max:"6",raw:"5～6g",level:"常用",effect:"疏散风热、利咽开音",indication:"风热感冒、咽痛音哑",condition:"—",risk:"孕妇慎用",priority:"A",auto:"Y",block:"N",tags:"蝉蜕|5-6g|疏散风热|利咽",note:""},
+    {min:"25",max:"30",raw:"25～30g",level:"大",effect:"息风止痉",indication:"破伤风",condition:"需医师辨证",risk:"孕妇慎用",priority:"C",auto:"仅医师",block:"N",tags:"蝉蜕|25-30g|破伤风",note:""}
+  ],
+  "黄连":[
+    {min:"1",max:"2",raw:"1～2g",level:"小",effect:"健胃、增进食欲",indication:"食欲不振",condition:"—",risk:"脾胃虚寒者慎用",priority:"B",auto:"Y",block:"N",tags:"黄连|1-2g|健胃",note:""},
+    {min:"3",max:"6",raw:"3～6g",level:"常用",effect:"燥湿、泻火解毒",indication:"中焦湿热、泻痢、心火",condition:"配黄芩、黄柏",risk:"脾胃虚寒者慎用",priority:"A",auto:"Y",block:"N",tags:"黄连|3-6g|燥湿|泻火解毒|泻痢",note:""},
+    {min:"6",max:"",raw:"大量",level:"大",effect:"刺激胃壁",indication:"—",condition:"—",risk:"可致恶心呕吐",priority:"D",auto:"N",block:"Y",tags:"黄连|大量|胃肠刺激",note:"风险规则"}
+  ],
+  "龙胆":[
+    {min:"",max:"",raw:"小剂",level:"小",effect:"开胃健胃",indication:"食欲不振",condition:"—",risk:"脾胃虚寒忌用",priority:"B",auto:"Y",block:"N",tags:"龙胆|小剂|开胃",note:""},
+    {min:"",max:"",raw:"大剂",level:"大",effect:"清肝胆湿热",indication:"湿热黄疸、阴肿阴痒、肝火头痛",condition:"—",risk:"脾胃虚寒忌用",priority:"B",auto:"Y",block:"N",tags:"龙胆|大剂|清肝胆湿热",note:""}
+  ],
+  "苦参":[
+    {min:"5",max:"8",raw:"5～8g",level:"小",effect:"利尿消肿、平喘止咳",indication:"肾炎性水肿、肝硬化腹水、支气管哮喘",condition:"—",risk:"反藜芦；脾胃虚寒忌用",priority:"B",auto:"Y",block:"N",tags:"苦参|5-8g|利尿消肿|平喘",note:""},
+    {min:"10",max:"15",raw:"10～15g",level:"常用",effect:"治痢、抗钩端螺旋体、治皮肤病",indication:"细菌性痢疾、皮肤病",condition:"—",risk:"反藜芦",priority:"B",auto:"Y",block:"N",tags:"苦参|10-15g|痢疾|皮肤病",note:""},
+    {min:"30",max:"60",raw:"30～60g",level:"大",effect:"外治感染、治失眠",indication:"感染、各种原因失眠",condition:"外用或医师指导",risk:"反藜芦；不宜久服",priority:"C",auto:"仅医师",block:"N",tags:"苦参|30-60g|外治|失眠",note:""}
+  ],
+  "玄参":[
+    {min:"9",max:"12",raw:"9～12g",level:"常用",effect:"滋阴降火、清热润肺",indication:"虚火上炎咽痛牙痛、肺热咳嗽",condition:"—",risk:"反藜芦；脾胃虚寒不宜",priority:"B",auto:"Y",block:"N",tags:"玄参|9-12g|滋阴降火",note:""},
+    {min:"18",max:"30",raw:"18～30g",level:"大",effect:"祛虚热、除烦躁",indication:"热病伤阴、阴虚火盛烦躁",condition:"—",risk:"反藜芦",priority:"B",auto:"仅医师",block:"N",tags:"玄参|18-30g|除烦躁",note:""},
+    {min:"30",max:"90",raw:"30～90g",level:"超大",effect:"软坚散结",indication:"瘰疬、脉管炎",condition:"需医师辨证",risk:"反藜芦",priority:"C",auto:"仅医师",block:"N",tags:"玄参|30-90g|软坚散结|瘰疬",note:""}
+  ],
+  "赤芍":[
+    {min:"30",max:"60",raw:"30～60g",level:"大",effect:"凉血活血、通腑利胆、降门脉压",indication:"胆红质代谢障碍",condition:"需医师辨证",risk:"反藜芦；血寒经闭不宜",priority:"C",auto:"仅医师",block:"N",tags:"赤芍|30-60g|利胆|降门脉压",note:""},
+    {min:"90",max:"",raw:"90g以上",level:"超大",effect:"凉血活血、通腑利胆",indication:"胆红质代谢障碍重症",condition:"需医师辨证",risk:"反藜芦",priority:"C",auto:"仅医师",block:"N",tags:"赤芍|90g以上|利胆",note:""}
+  ],
+  "夏枯草":[
+    {min:"9",max:"15",raw:"9～15g",level:"常用",effect:"清肝火、明目、散结",indication:"目赤肿痛、头痛眩晕、瘰疬",condition:"—",risk:"脾胃虚弱慎用",priority:"A",auto:"Y",block:"N",tags:"夏枯草|9-15g|清肝明目|散结",note:""},
+    {min:"30",max:"",raw:"30g以上",level:"大",effect:"散结消肿",indication:"病程较长的甲状腺瘤",condition:"需医师辨证",risk:"脾胃虚弱慎用",priority:"C",auto:"仅医师",block:"N",tags:"夏枯草|30g以上|甲状腺瘤",note:""}
+  ],
+  "决明子":[
+    {min:"3",max:"6",raw:"3～6g",level:"小",effect:"清热明目",indication:"急性结膜炎、麦粒肿、角膜云翳、虹膜炎",condition:"—",risk:"气虚便溏不宜",priority:"B",auto:"Y",block:"N",tags:"决明子|3-6g|明目|眼科",note:""},
+    {min:"9",max:"12",raw:"9～12g",level:"常用",effect:"清热、通便",indication:"老年性哮喘、胃炎、胃溃疡、泌尿感染",condition:"—",risk:"气虚便溏不宜",priority:"B",auto:"Y",block:"N",tags:"决明子|9-12g|胃炎|哮喘",note:""},
+    {min:"20",max:"30",raw:"20～30g",level:"大",effect:"清热降压、利胆",indication:"急性胆道感染、胆囊炎、慢性胰腺炎、高血压",condition:"—",risk:"气虚便溏不宜",priority:"B",auto:"Y",block:"N",tags:"决明子|20-30g|胆囊炎|高血压",note:""}
+  ],
+  "连翘":[
+    {min:"6",max:"15",raw:"6～15g",level:"常用",effect:"清热解毒、消肿散结",indication:"痈肿疮毒、瘰疬痰核",condition:"—",risk:"脾胃虚寒慎用",priority:"A",auto:"Y",block:"N",tags:"连翘|6-15g|清热解毒|散结",note:""},
+    {min:"30",max:"60",raw:"一至二两",level:"大",effect:"发汗（柔和绵长）",indication:"外感风热",condition:"单用煎汤",risk:"脾胃虚寒慎用",priority:"C",auto:"仅医师",block:"N",tags:"连翘|30-60g|发汗|外感风热",note:"张锡纯经验"}
+  ],
+  "知母":[
+    {min:"6",max:"12",raw:"6～12g",level:"常用",effect:"清热泻火、生津润燥",indication:"热病烦渴、肺热燥咳、骨蒸潮热",condition:"—",risk:"脾虚便溏不宜",priority:"A",auto:"Y",block:"N",tags:"知母|6-12g|清热|生津",note:""},
+    {min:"",max:"",raw:"大剂量",level:"大",effect:"控制血糖",indication:"糖尿病",condition:"姜春华经验",risk:"脾虚便溏不宜",priority:"C",auto:"仅医师",block:"N",tags:"知母|大剂量|控制血糖",note:"个案经验"}
+  ],
+  "大黄":[
+    {min:"",max:"0.3",raw:"0.3g以下",level:"极小",effect:"止泻（鞣酸收敛）",indication:"—",condition:"大黄粉",risk:"孕妇慎用",priority:"B",auto:"仅医师",block:"N",tags:"大黄|0.3g以下|止泻|鞣酸",note:""},
+    {min:"1",max:"5",raw:"1～5g",level:"小",effect:"致泻",indication:"便秘",condition:"生用",risk:"孕妇慎用",priority:"B",auto:"仅医师",block:"N",tags:"大黄|1-5g|致泻",note:""},
+    {min:"3",max:"6",raw:"3～6g",level:"小",effect:"止泻",indication:"—",condition:"—",risk:"与R02冲突，需人工复核",priority:"D",auto:"N",block:"Y",tags:"大黄|3-6g|止泻|证据冲突",note:"与1-5g致泻重叠，需复核"},
+    {min:"9",max:"15",raw:"9～15g",level:"常用",effect:"泻下攻积",indication:"热结便秘",condition:"不宜久煎",risk:"孕妇、经期、哺乳期慎用",priority:"A",auto:"Y",block:"N",tags:"大黄|9-15g|泻下|热结便秘",note:""},
+    {min:"30",max:"30",raw:"30g",level:"大",effect:"治肝炎",indication:"肝炎",condition:"常规剂量",risk:"孕妇慎用",priority:"C",auto:"仅医师",block:"N",tags:"大黄|30g|肝炎",note:""},
+    {min:"120",max:"120",raw:"二两",level:"超大",effect:"治癫狂脉实",indication:"癫狂",condition:"《医学衷中参西录》",risk:"孕妇禁用",priority:"C",auto:"仅医师",block:"Y",tags:"大黄|二两|癫狂",note:"超常规剂量，硬拦截"}
+  ],
+  "牵牛子":[
+    {min:"3",max:"6",raw:"少用",level:"小",effect:"泻下通便、祛肠中积滞",indication:"肠中积滞",condition:"炒用",risk:"孕妇忌用；畏巴豆",priority:"C",auto:"仅医师",block:"N",tags:"牵牛子|少用|泻下通便",note:""},
+    {min:"",max:"",raw:"多用",level:"大",effect:"峻下逐水、攻逐腹水",indication:"腹水",condition:"原文未量化",risk:"孕妇忌用",priority:"C",auto:"仅医师",block:"N",tags:"牵牛子|多用|峻下逐水",note:"原文未给具体克数"}
+  ],
+  "防己":[
+    {min:"5",max:"10",raw:"小量",level:"小",effect:"增加尿量",indication:"水肿、小便不利",condition:"—",risk:"食欲不振及阴虚无湿热者忌用",priority:"B",auto:"仅医师",block:"N",tags:"防己|小量|增加尿量",note:""},
+    {min:"",max:"",raw:"大量",level:"大",effect:"尿量减少（作用相反）",indication:"—",condition:"—",risk:"苦寒较甚，不宜大量",priority:"D",auto:"N",block:"Y",tags:"防己|大量|尿量减少|双向",note:"剂量-效应反向"}
+  ],
+  "茯苓":[
+    {min:"",max:"25",raw:"25g以下",level:"小",effect:"利尿作用不明显",indication:"—",condition:"—",risk:"虚寒精滑慎用",priority:"D",auto:"N",block:"Y",tags:"茯苓|25g以下|无利尿",note:"低于阈值，不作为利尿首选"},
+    {min:"30",max:"99",raw:"至少30g",level:"常用",effect:"利尿",indication:"水肿、小便不利",condition:"—",risk:"虚寒精滑慎用",priority:"A",auto:"Y",block:"N",tags:"茯苓|30g|利尿",note:""},
+    {min:"100",max:"100",raw:"100g",level:"大",effect:"利尿作用最强",indication:"水肿重症",condition:"—",risk:"虚寒精滑慎用",priority:"B",auto:"仅医师",block:"N",tags:"茯苓|100g|利尿最强",note:""}
+  ],
+  "泽泻":[
+    {min:"6",max:"10",raw:"6～10g",level:"常用",effect:"利水渗湿、泄热",indication:"黄疸型肝炎、急性肠炎、植物神经失调多汗",condition:"—",risk:"肾虚精滑慎用",priority:"B",auto:"Y",block:"N",tags:"泽泻|6-10g|肝炎|暴泻",note:""},
+    {min:"15",max:"20",raw:"15～20g",level:"常用",effect:"利水通乳、清热利湿",indication:"乳汁不通、急慢性湿疹",condition:"—",risk:"肾虚精滑慎用",priority:"B",auto:"Y",block:"N",tags:"泽泻|15-20g|通乳|湿疹",note:""},
+    {min:"25",max:"30",raw:"25～30g",level:"大",effect:"利水泄热、止眩",indication:"美尼尔氏综合征、高血压、低血糖眩晕",condition:"治眩晕非30g不为功",risk:"肾虚精滑慎用",priority:"B",auto:"Y",block:"N",tags:"泽泻|25-30g|眩晕|美尼尔",note:""}
+  ],
+  "附子":[
+    {min:"12",max:"12",raw:"1枚约12g",level:"小",effect:"温阳（轻量）",indication:"阳虚证",condition:"炮制，先煎",risk:"有毒，孕妇慎用；反半夏瓜蒌贝母白蔹白及",priority:"B",auto:"仅医师",block:"N",tags:"附子|1枚|12g|阳虚",note:""},
+    {min:"24",max:"36",raw:"2～3枚",level:"大",effect:"祛风湿、止痛",indication:"风寒湿痹、寒疝作痛",condition:"炮制，先煎久煎",risk:"有毒；反半夏瓜蒌贝母白蔹白及",priority:"C",auto:"仅医师",block:"N",tags:"附子|2-3枚|祛风湿|止痛",note:""},
+    {min:"120",max:"300",raw:"120～300g",level:"超大",effect:"温补脾肾之阳、温补中下焦元阳",indication:"脾肾阳虚重证",condition:"制附子，水煎3-5小时",risk:"必须由资深医师使用",priority:"C",auto:"仅医师",block:"Y",tags:"附子|120-300g|水煎3-5小时|温补元阳",note:"超高剂量，硬拦截"}
+  ],
+  "枳实":[
+    {min:"3",max:"10",raw:"3～10g",level:"常用",effect:"破气消积、化痰散痞",indication:"食积气滞、湿热泻痢、痰滞胸痹",condition:"炒用性较平和",risk:"孕妇慎用；脾胃虚弱慎用",priority:"A",auto:"Y",block:"N",tags:"枳实|3-10g|破气消积",note:""},
+    {min:"60",max:"100",raw:"60～100g",level:"超大",effect:"升提脏器",indication:"脏器下垂（胃下垂、子宫脱垂）",condition:"需医师辨证",risk:"孕妇禁用",priority:"C",auto:"仅医师",block:"N",tags:"枳实|60-100g|脏器下垂",note:""}
+  ],
+  "枳壳":[
+    {min:"3",max:"12",raw:"3～12g",level:"常用",effect:"行气宽中、除胀",indication:"脾胃功能失调所致气滞诸证",condition:"—",risk:"气虚者慎用",priority:"A",auto:"Y",block:"N",tags:"枳壳|3-12g|行气宽中|除胀",note:""},
+    {min:"15",max:"30",raw:"15～30g",level:"大",effect:"升提脏器",indication:"子宫脱垂、久泻脱肛",condition:"药理：兴奋胃肠、子宫",risk:"孕妇禁用",priority:"C",auto:"仅医师",block:"N",tags:"枳壳|15-30g|子宫脱垂|脱肛",note:""}
+  ],
+  "山楂":[
+    {min:"6",max:"6",raw:"6g",level:"小",effect:"祛瘀力强",indication:"血瘀证",condition:"—",risk:"胃酸过多者慎用",priority:"B",auto:"Y",block:"N",tags:"山楂|6g|祛瘀",note:""},
+    {min:"9",max:"12",raw:"9～12g",level:"常用",effect:"温通力强",indication:"慢性肝炎",condition:"—",risk:"胃酸过多者慎用",priority:"B",auto:"Y",block:"N",tags:"山楂|9-12g|温通|慢性肝炎",note:""},
+    {min:"15",max:"30",raw:"15～30g",level:"大",effect:"消食化积、行气散瘀",indication:"慢性胆囊炎、萎缩性胃炎",condition:"—",risk:"胃酸过多者慎用",priority:"B",auto:"Y",block:"N",tags:"山楂|15-30g|胆囊炎|萎缩性胃炎",note:""}
+  ],
+  "麦芽":[
+    {min:"",max:"30",raw:"生麦芽＜30g",level:"小",effect:"通乳",indication:"乳汁不下",condition:"生麦芽，取生发之意",risk:"哺乳期可用；孕妇慎用",priority:"A",auto:"Y",block:"N",tags:"麦芽|生麦芽|小于30g|通乳",note:""},
+    {min:"60",max:"120",raw:"炒麦芽60～120g",level:"大",effect:"回乳",indication:"断乳、乳汁郁积",condition:"炒麦芽，取炒枯之意",risk:"哺乳期妇女不宜使用",priority:"A",auto:"Y",block:"N",tags:"麦芽|炒麦芽|60-120g|回乳",note:""}
+  ],
+  "鸡内金":[
+    {min:"3",max:"3",raw:"3g",level:"小",effect:"固精止遗",indication:"体虚遗精、遗尿，尤其肺结核之遗精",condition:"研末服",risk:"—",priority:"B",auto:"Y",block:"N",tags:"鸡内金|3g|遗精|遗尿",note:""},
+    {min:"4.5",max:"12",raw:"4.5～12g",level:"常用",effect:"消食祛积、调理脾胃",indication:"消化酶不足引起的胃纳不佳、积滞胀闷",condition:"研末服效果优于煎剂",risk:"—",priority:"A",auto:"Y",block:"N",tags:"鸡内金|4.5-12g|消食|健胃",note:""},
+    {min:"15",max:"18",raw:"15～18g",level:"大",effect:"化坚消石",indication:"泌尿系结石、胆石症",condition:"研末服",risk:"—",priority:"B",auto:"Y",block:"N",tags:"鸡内金|15-18g|化石|结石",note:""}
+  ],
+  "槟榔":[
+    {min:"6",max:"15",raw:"6～15g",level:"常用",effect:"消积、行气、利水",indication:"食积气滞、泻痢后重、水肿脚气",condition:"焦槟榔治食滞不消",risk:"脾虚便溏慎用；孕妇慎用",priority:"A",auto:"Y",block:"N",tags:"槟榔|6-15g|消积|行气|利水",note:""},
+    {min:"60",max:"120",raw:"60～120g",level:"超大",effect:"杀姜片虫、绦虫",indication:"姜片虫、绦虫感染",condition:"配南瓜子疗效更佳",risk:"需医师辨证",priority:"C",auto:"仅医师",block:"N",tags:"槟榔|60-120g|杀绦虫|姜片虫",note:""}
+  ],
+  "艾叶":[
+    {min:"3",max:"5",raw:"3～5g",level:"小",effect:"开胃",indication:"食欲不振",condition:"—",risk:"阴虚血热慎用",priority:"C",auto:"N",block:"N",tags:"艾叶|3-5g|开胃",note:""},
+    {min:"8",max:"8",raw:"8g左右",level:"常用",effect:"温经止血、止痛",indication:"虚寒性出血、痛经",condition:"—",risk:"阴虚血热慎用",priority:"B",auto:"Y",block:"N",tags:"艾叶|8g|温经止血|止痛",note:""},
+    {min:"",max:"",raw:"大量",level:"超大",effect:"肝细胞损害、中毒性肝炎、胃肠道炎症",indication:"—",condition:"—",risk:"严重毒性，禁止大剂量",priority:"D",auto:"N",block:"Y",tags:"艾叶|大量|肝损伤|中毒性肝炎",note:"硬拦截：肝毒性剂量"}
+  ],
+  "川芎":[
+    {min:"",max:"4",raw:"不超过4g",level:"小",effect:"祛风止痛",indication:"外感头痛",condition:"—",risk:"阴虚火旺、月经过多慎用",priority:"A",auto:"Y",block:"N",tags:"川芎|小于4g|外感头痛",note:""},
+    {min:"9",max:"12",raw:"9～12g",level:"常用",effect:"平肝止痛、降压",indication:"高血压肝阳头痛",condition:"—",risk:"阴虚火旺慎用",priority:"B",auto:"Y",block:"N",tags:"川芎|9-12g|肝阳头痛|降压",note:""},
+    {min:"15",max:"30",raw:"15～30g",level:"大",effect:"活血行气、祛风止痛",indication:"血瘀头痛（血府逐瘀汤）",condition:"配当归、桃仁",risk:"孕妇慎用",priority:"A",auto:"仅医师",block:"N",tags:"川芎|15-30g|血瘀头痛",note:""},
+    {min:"30",max:"30",raw:"30g",level:"大",effect:"祛风止痛",indication:"偏头痛（散偏汤）",condition:"减少用量则疗效不佳",risk:"孕妇慎用",priority:"C",auto:"仅医师",block:"N",tags:"川芎|30g|偏头痛|散偏汤",note:""}
+  ],
+  "郁金":[
+    {min:"3",max:"10",raw:"3～10g",level:"常用",effect:"疏肝解郁止痛",indication:"慢性肝炎和肝硬化肝区痛、痛经",condition:"—",risk:"畏丁香；孕妇慎用",priority:"A",auto:"Y",block:"N",tags:"郁金|3-10g|疏肝解郁|止痛",note:""},
+    {min:"10",max:"15",raw:"10～15g",level:"常用",effect:"行气利胆",indication:"传染性肝炎",condition:"能升高血清蛋白、促进胆汁分泌",risk:"畏丁香",priority:"B",auto:"Y",block:"N",tags:"郁金|10-15g|行气利胆|肝炎",note:""},
+    {min:"30",max:"60",raw:"30～60g",level:"大",effect:"排石",indication:"各种结石",condition:"善治肝胆，善行下焦",risk:"畏丁香；孕妇慎用",priority:"C",auto:"仅医师",block:"N",tags:"郁金|30-60g|排石|结石",note:""}
+  ],
+  "丹参":[
+    {min:"5",max:"15",raw:"5～15g",level:"常用",effect:"活血祛瘀、通经止痛、清心除烦",indication:"月经不调、血瘀心痛、心悸失眠",condition:"活血化瘀宜酒炙",risk:"反藜芦；孕妇慎用",priority:"A",auto:"Y",block:"N",tags:"丹参|5-15g|活血祛瘀|调经",note:""},
+    {min:"",max:"",raw:"大剂量",level:"大",effect:"治失眠",indication:"失眠",condition:"姜春华经验",risk:"反藜芦",priority:"C",auto:"仅医师",block:"N",tags:"丹参|大剂量|失眠",note:"个案经验"}
+  ],
+  "红花":[
+    {min:"0.9",max:"1.5",raw:"0.9～1.5g",level:"小",effect:"调养气血、养血和血",indication:"产后血晕、头晕、眼花气冷",condition:"在温补剂中加入少量",risk:"孕妇禁用",priority:"B",auto:"Y",block:"N",tags:"红花|0.9-1.5g|养血",note:""},
+    {min:"12",max:"15",raw:"12～15g",level:"大",effect:"破瘀通经",indication:"冠心病、心绞痛",condition:"兴奋子宫、降压、扩张血管",risk:"孕妇禁用；有出血倾向慎用",priority:"A",auto:"仅医师",block:"N",tags:"红花|12-15g|破瘀|冠心病",note:""}
+  ],
+  "三棱":[
+    {min:"5",max:"9",raw:"常用上限9g",level:"常用",effect:"破血行气、消积止痛",indication:"癥瘕积聚、经闭、食积脘腹胀痛",condition:"醋制加强止痛",risk:"孕妇禁用；月经过多慎用",priority:"B",auto:"仅医师",block:"N",tags:"三棱|5-9g|破血行气|消积",note:""},
+    {min:"45",max:"75",raw:"45～75g",level:"超大",effect:"破血消癥",indication:"各类晚期恶性肿瘤",condition:"配合其他中药，需资深医师",risk:"孕妇禁用；毒性风险高",priority:"C",auto:"仅医师",block:"Y",tags:"三棱|45-75g|肿瘤|超量",note:"超药典上限5-8倍，硬拦截"}
+  ],
+  "半夏":[
+    {min:"10",max:"15",raw:"10～15g",level:"常用",effect:"止呕、除湿",indication:"湿痰寒痰、呕吐",condition:"姜半夏长于降逆止呕",risk:"反乌头；阴虚燥咳慎用",priority:"B",auto:"Y",block:"N",tags:"半夏|10-15g|止呕|除湿",note:""},
+    {min:"15",max:"30",raw:"15～30g",level:"大",effect:"开胃",indication:"食欲不振",condition:"—",risk:"反乌头；孕妇慎用",priority:"C",auto:"仅医师",block:"N",tags:"半夏|15-30g|开胃",note:""},
+    {min:"30",max:"",raw:"大于30g",level:"超大",effect:"安神",indication:"失眠",condition:"需医师辨证",risk:"反乌头；生半夏有毒",priority:"C",auto:"仅医师",block:"Y",tags:"半夏|30g以上|安神",note:"超常规剂量，硬拦截"}
+  ],
+  "浙贝母":[
+    {min:"9",max:"15",raw:"9～15g",level:"常用",effect:"清肺热、润肺燥、清热化痰",indication:"外感及内热咳嗽",condition:"—",risk:"反乌头；脾胃虚寒慎用",priority:"B",auto:"Y",block:"N",tags:"浙贝母|9-15g|清热化痰|咳嗽",note:""},
+    {min:"18",max:"30",raw:"18～30g",level:"大",effect:"解毒散结",indication:"肺痈、乳痈、瘰疬、发背及一切痈疡肿毒",condition:"—",risk:"反乌头；脾胃虚寒慎用",priority:"B",auto:"Y",block:"N",tags:"浙贝母|18-30g|解毒散结|痈疡",note:""}
+  ],
+  "马兜铃":[
+    {min:"3",max:"10",raw:"常用量",level:"常用",effect:"止咳",indication:"肺热咳喘",condition:"—",risk:"剂量不宜过大，以免引起呕吐",priority:"B",auto:"仅医师",block:"N",tags:"马兜铃|常用量|止咳",note:""},
+    {min:"15",max:"15",raw:"15g",level:"大",effect:"致呕吐",indication:"—",condition:"—",risk:"呕吐风险",priority:"D",auto:"N",block:"Y",tags:"马兜铃|15g|呕吐|毒性",note:"风险规则"},
+    {min:"30",max:"",raw:"30g以上",level:"超大",effect:"呼吸抑制、血压下降",indication:"—",condition:"—",risk:"严重毒性，禁用",priority:"D",auto:"N",block:"Y",tags:"马兜铃|30g以上|呼吸抑制|毒性",note:"硬拦截：呼吸抑制"}
+  ],
+  "桑白皮":[
+    {min:"6",max:"9",raw:"6～9g",level:"常用",effect:"退热",indication:"肺热发热",condition:"—",risk:"肺寒咳嗽慎用",priority:"B",auto:"Y",block:"N",tags:"桑白皮|6-9g|退热",note:""},
+    {min:"10",max:"12",raw:"10～12g",level:"常用",effect:"祛痰镇咳",indication:"肺热咳嗽痰多",condition:"—",risk:"肺寒咳嗽慎用",priority:"B",auto:"Y",block:"N",tags:"桑白皮|10-12g|祛痰|镇咳",note:""},
+    {min:"15",max:"15",raw:"15g",level:"常用",effect:"利尿及轻泻",indication:"水肿、小便不利",condition:"—",risk:"肺寒咳嗽慎用",priority:"B",auto:"Y",block:"N",tags:"桑白皮|15g|利尿|轻泻",note:""}
+  ],
+  "白果":[
+    {min:"5",max:"10",raw:"5～10g",level:"常用",effect:"敛肺定喘、止带缩尿",indication:"哮喘痰嗽、带下、尿频",condition:"捣碎用",risk:"生用有毒，不宜多用",priority:"A",auto:"Y",block:"N",tags:"白果|5-10g|敛肺定喘|止带缩尿",note:""},
+    {min:"25",max:"25",raw:"21枚约25g",level:"大",effect:"定喘（优于常规剂量）",indication:"哮喘",condition:"定喘汤",risk:"生用有毒；小儿尤当注意",priority:"C",auto:"仅医师",block:"N",tags:"白果|25g|定喘|定喘汤",note:""}
+  ],
+  "胖大海":[
+    {min:"1",max:"4",raw:"1～4枚",level:"常用",effect:"开肺解表、清热利咽",indication:"风火犯喉所致声音嘶哑",condition:"—",risk:"—",priority:"B",auto:"Y",block:"N",tags:"胖大海|1-4枚|利咽|声嘶",note:""},
+    {min:"12",max:"15",raw:"12～15枚",level:"大",effect:"通便",indication:"头目风热疾患合并大便热结",condition:"—",risk:"—",priority:"C",auto:"仅医师",block:"N",tags:"胖大海|12-15枚|通便",note:""}
+  ],
+  "龙骨":[
+    {min:"6",max:"10",raw:"6～10g",level:"常用",effect:"摄汗、止血、潜阳",indication:"自汗盗汗、鼻衄、月经过多、高血压",condition:"—",risk:"湿热积滞慎用",priority:"B",auto:"Y",block:"N",tags:"龙骨|6-10g|摄汗|止血|潜阳",note:""},
+    {min:"12",max:"15",raw:"12～15g",level:"常用",effect:"定喘",indication:"支气管哮喘",condition:"—",risk:"湿热积滞慎用",priority:"B",auto:"Y",block:"N",tags:"龙骨|12-15g|定喘|哮喘",note:""},
+    {min:"20",max:"20",raw:"20g",level:"大",effect:"安神",indication:"心悸失眠",condition:"—",risk:"湿热积滞慎用",priority:"B",auto:"Y",block:"N",tags:"龙骨|20g|安神|失眠",note:""}
+  ],
+  "牡蛎":[
+    {min:"6",max:"10",raw:"6～10g",level:"常用",effect:"摄汗、止血、潜阳",indication:"自汗盗汗、鼻衄、月经过多、高血压",condition:"—",risk:"湿热实邪慎用",priority:"B",auto:"Y",block:"N",tags:"牡蛎|6-10g|摄汗|止血|潜阳",note:""},
+    {min:"12",max:"15",raw:"12～15g",level:"常用",effect:"定喘",indication:"支气管哮喘",condition:"—",risk:"湿热实邪慎用",priority:"B",auto:"Y",block:"N",tags:"牡蛎|12-15g|定喘|哮喘",note:""},
+    {min:"20",max:"20",raw:"20g",level:"大",effect:"安神",indication:"心悸失眠",condition:"—",risk:"湿热实邪慎用",priority:"B",auto:"Y",block:"N",tags:"牡蛎|20g|安神|失眠",note:""}
+  ],
+  "代赭石":[
+    {min:"9",max:"18",raw:"9～18g",level:"常用",effect:"镇胃降气、止呕止噫",indication:"胃气虚弱的呕吐、呕逆、胃脘满实",condition:"—",risk:"孕妇慎用；脾胃虚寒慎用",priority:"B",auto:"Y",block:"N",tags:"代赭石|9-18g|降气|止呕",note:""},
+    {min:"24",max:"30",raw:"24～30g",level:"大",effect:"平喘、平肝潜阳",indication:"实证气喘、肝阳上亢头晕目眩",condition:"—",risk:"孕妇慎用",priority:"B",auto:"Y",block:"N",tags:"代赭石|24-30g|平喘|平肝潜阳",note:""}
+  ],
+  "石菖蒲":[
+    {min:"1.5",max:"3",raw:"1.5～3g",level:"小",effect:"明目、开音（作药引）",indication:"角膜溃疡、声音嘶哑",condition:"—",risk:"阴虚血亏慎用",priority:"B",auto:"Y",block:"N",tags:"石菖蒲|1.5-3g|药引|明目|开音",note:""},
+    {min:"4.5",max:"7.5",raw:"4.5～7.5g",level:"常用",effect:"开窍",indication:"湿温病湿浊蒙蔽清窍、狂躁型精神分裂症",condition:"—",risk:"阴虚血亏慎用",priority:"B",auto:"Y",block:"N",tags:"石菖蒲|4.5-7.5g|开窍",note:""},
+    {min:"9",max:"12",raw:"9～12g",level:"常用",effect:"通利小便",indication:"石淋、热淋",condition:"—",risk:"阴虚血亏慎用",priority:"B",auto:"Y",block:"N",tags:"石菖蒲|9-12g|利尿|石淋|热淋",note:""},
+    {min:"30",max:"30",raw:"30g",level:"大",effect:"治中风后遗症偏瘫、久泻",indication:"中风后遗症偏瘫、慢性肠炎所致久泻",condition:"—",risk:"阴虚血亏慎用",priority:"C",auto:"仅医师",block:"N",tags:"石菖蒲|30g|偏瘫|久泻",note:""}
+  ],
+  "人参":[
+    {min:"5",max:"10",raw:"5～10g",level:"常用",effect:"大补元气、补脾益肺、安神益智",indication:"气虚诸证",condition:"另煎兑服",risk:"反藜芦；畏五灵脂；实证热证忌用",priority:"A",auto:"Y",block:"N",tags:"人参|5-10g|大补元气|补脾益肺",note:""},
+    {min:"15",max:"30",raw:"15～30g",level:"大",effect:"复脉固脱",indication:"气虚欲脱、脉微欲绝",condition:"另煎兑服",risk:"反藜芦；畏五灵脂",priority:"A",auto:"仅医师",block:"N",tags:"人参|15-30g|复脉固脱",note:""}
+  ],
+  "黄芪":[
+    {min:"",max:"10",raw:"10g以下",level:"小",effect:"升压",indication:"低血压",condition:"—",risk:"高血压慎用",priority:"B",auto:"仅医师",block:"N",tags:"黄芪|10g以下|升压",note:""},
+    {min:"9",max:"15",raw:"9～15g",level:"常用",effect:"补气升阳、固表止汗",indication:"脾虚中气下陷、表虚自汗",condition:"补气升阳宜炙用",risk:"表实邪盛、阴虚阳亢慎用",priority:"A",auto:"Y",block:"N",tags:"黄芪|9-15g|补气升阳|固表止汗",note:""},
+    {min:"15",max:"30",raw:"15～30g",level:"常用",effect:"降压",indication:"高血压",condition:"—",risk:"低血压慎用",priority:"B",auto:"仅医师",block:"N",tags:"黄芪|15-30g|降压",note:""},
+    {min:"30",max:"",raw:"30g以上",level:"大",effect:"利尿作用趋向抑制",indication:"—",condition:"—",risk:"水肿慎用大剂量",priority:"D",auto:"N",block:"Y",tags:"黄芪|30g以上|利尿抑制|双向",note:"剂量-效应反向"},
+    {min:"120",max:"120",raw:"120g",level:"超大",effect:"补气活血通络",indication:"中风后遗症（补阳还五汤）",condition:"王清任方",risk:"需资深医师辨证",priority:"C",auto:"仅医师",block:"Y",tags:"黄芪|120g|补阳还五汤|中风",note:"超常规剂量，硬拦截"}
+  ],
+  "白术":[
+    {min:"6",max:"12",raw:"6～12g",level:"常用",effect:"健脾止泻",indication:"脾虚食少、脾虚水肿",condition:"炒用增强补气健脾止泻",risk:"阴虚内热、津液亏耗慎用",priority:"A",auto:"Y",block:"N",tags:"白术|6-12g|健脾止泻",note:""},
+    {min:"30",max:"60",raw:"30～60g",level:"大",effect:"益气通便",indication:"气虚便秘",condition:"—",risk:"阴虚内热慎用",priority:"B",auto:"仅医师",block:"N",tags:"白术|30-60g|益气通便",note:""}
+  ],
+  "当归":[
+    {min:"3",max:"9",raw:"3～9g",level:"小",effect:"补血",indication:"血虚诸证",condition:"当归身；归脾汤、八珍汤仅用3g",risk:"湿盛中满、大便泄泻忌服",priority:"A",auto:"Y",block:"N",tags:"当归|3-9g|补血|当归身",note:""},
+    {min:"15",max:"60",raw:"15g以上",level:"大",effect:"活血、活血止痛",indication:"血瘀证、跌打损伤、脱疽",condition:"当归尾；四妙勇安汤60g",risk:"湿盛中满忌服",priority:"B",auto:"仅医师",block:"N",tags:"当归|15g以上|活血|活血止痛",note:""},
+    {min:"24",max:"24",raw:"24g",level:"大",effect:"活血止痛、祛瘀生新",indication:"产后瘀血内阻、恶露不行、小腹疼痛",condition:"生化汤",risk:"孕妇慎用",priority:"C",auto:"仅医师",block:"N",tags:"当归|24g|生化汤|祛瘀生新",note:""}
+  ],
+  "白芍":[
+    {min:"6",max:"30",raw:"6～30g",level:"常用",effect:"养血敛阴、柔肝止痛、平抑肝阳",indication:"血虚月经不调、胁痛腹痛、肝阳上亢",condition:"—",risk:"反藜芦；虚寒腹痛泄泻慎用",priority:"A",auto:"Y",block:"N",tags:"白芍|6-30g|养血敛阴|柔肝止痛",note:""},
+    {min:"30",max:"45",raw:"30～45g",level:"大",effect:"利尿而不伤阴",indication:"热病后期阴液耗损、小便不利",condition:"—",risk:"反藜芦",priority:"B",auto:"仅医师",block:"N",tags:"白芍|30-45g|利尿",note:""},
+    {min:"30",max:"",raw:"30g以上",level:"大",effect:"止血（吐血）、治腹痛",indication:"大量吐血、腹痛",condition:"芍药甘草汤芍药用量要大",risk:"反藜芦",priority:"C",auto:"仅医师",block:"N",tags:"白芍|30g以上|止血|腹痛",note:""}
+  ],
+  "熟地黄":[
+    {min:"9",max:"15",raw:"9～15g",level:"常用",effect:"补血滋阴、益精填髓",indication:"血虚诸证、肝肾阴虚",condition:"重用久服配陈皮、砂仁",risk:"脾胃虚弱、气滞痰多、食少便溏忌用",priority:"A",auto:"Y",block:"N",tags:"熟地黄|9-15g|补血滋阴",note:""},
+    {min:"120",max:"150",raw:"四、五两",level:"超大",effect:"止泻（下焦虚损大便滑泻）",indication:"下焦虚损、大便滑泻，他药不效者",condition:"煎浓汤服；少用则作闷，多用转不闷",risk:"必须辨证使用",priority:"C",auto:"仅医师",block:"Y",tags:"熟地黄|四-五两|止泻|重用",note:"超常规剂量，硬拦截"}
+  ],
+  "肉苁蓉":[
+    {min:"6",max:"12",raw:"6～12g",level:"常用",effect:"补肾助阳、益精血",indication:"阳痿不孕、腰膝冷痛、筋骨无力",condition:"—",risk:"阴虚火旺、大便泄泻忌用",priority:"B",auto:"Y",block:"N",tags:"肉苁蓉|6-12g|补肾助阳|益精血",note:""},
+    {min:"15",max:"18",raw:"15～18g",level:"常用",effect:"润肠通便",indication:"肠燥津枯之大便秘结",condition:"—",risk:"大便泄泻忌用",priority:"B",auto:"Y",block:"N",tags:"肉苁蓉|15-18g|润肠通便",note:""}
+  ],
+  "炙甘草":[
+    {min:"1",max:"2",raw:"1～2g",level:"小",effect:"调和药性",indication:"复方调和",condition:"—",risk:"反甘遂、大戟、海藻、芫花",priority:"B",auto:"Y",block:"N",tags:"炙甘草|1-2g|调和药性",note:""},
+    {min:"5",max:"10",raw:"5～10g",level:"常用",effect:"温肾养心",indication:"心气不足、心悸",condition:"—",risk:"反甘遂、大戟、海藻、芫花",priority:"B",auto:"Y",block:"N",tags:"炙甘草|5-10g|温肾养心",note:""},
+    {min:"30",max:"",raw:"30g以上",level:"大",effect:"类似激素样作用",indication:"—",condition:"大剂量久服可致水钠潴留、浮肿",risk:"长期大剂量可致水钠潴留",priority:"C",auto:"仅医师",block:"N",tags:"炙甘草|30g以上|激素样作用",note:""}
+  ],
+  "五味子":[
+    {min:"1.5",max:"3",raw:"1.5～3g",level:"小",effect:"敛肺镇咳",indication:"肺虚咳嗽、老年慢性气管炎、肺气肿",condition:"—",risk:"表邪未解、内有实热不宜",priority:"B",auto:"Y",block:"N",tags:"五味子|1.5-3g|敛肺镇咳",note:""},
+    {min:"6",max:"9",raw:"6～9g",level:"常用",effect:"滋补益肾",indication:"肾虚型咳嗽、遗精滑精、久泻久痢",condition:"—",risk:"表邪未解不宜",priority:"B",auto:"Y",block:"N",tags:"五味子|6-9g|补肾|固精|止泻",note:""},
+    {min:"12",max:"",raw:"12g以上",level:"大",effect:"降低血清谷丙转氨酶",indication:"慢性肝炎恢复期转氨酶过高",condition:"—",risk:"需医师辨证",priority:"C",auto:"仅医师",block:"N",tags:"五味子|12g以上|降酶|肝炎",note:""},
+    {min:"100",max:"150",raw:"100～150g",level:"超大",effect:"治疗慢性疲劳综合症",indication:"慢性疲劳综合症",condition:"刘祯吉经验（四川）",risk:"必须医师指导",priority:"C",auto:"仅医师",block:"Y",tags:"五味子|100-150g|慢性疲劳",note:"超常规剂量，硬拦截"}
+  ],
+  "山茱萸":[
+    {min:"5",max:"10",raw:"5～10g",level:"常用",effect:"补益肝肾、收敛固涩",indication:"肝肾亏虚、头晕目眩、遗精尿频",condition:"—",risk:"命门火炽、素有湿热、小便淋涩不宜",priority:"A",auto:"Y",block:"N",tags:"山茱萸|5-10g|补益肝肾|收敛固涩",note:""},
+    {min:"25",max:"30",raw:"25～30g",level:"大",effect:"急救固脱",indication:"大汗虚脱",condition:"—",risk:"须辨证使用",priority:"A",auto:"仅医师",block:"N",tags:"山茱萸|25-30g|急救固脱",note:""}
+  ],
+  "洋金花":[
+    {min:"0.3",max:"0.6",raw:"0.3～0.6g",level:"常用",effect:"止咳平喘、止痛",indication:"咳喘、疼痛",condition:"每日用量不超过1.5g",risk:"剧毒，孕妇禁用",priority:"C",auto:"仅医师",block:"Y",tags:"洋金花|0.3-0.6g|止咳平喘|每日上限1.5g",note:""},
+    {min:"20",max:"20",raw:"20g",level:"超大",effect:"麻醉",indication:"手术麻醉",condition:"—",risk:"剧毒，极其危险",priority:"D",auto:"N",block:"Y",tags:"洋金花|20g|麻醉|剧毒",note:"硬拦截"}
+  ]
+};
+
+/* ==========================================================
+   ★ 鉴别用药规则：功效相近药物的优选提示
+   结构说明：
+   - groupA/groupB/groupC  参与比较的药（标准名）
+   - shared                共有功效
+   - uniqueA/B/C           各自独有功效
+   - indicationA/B/C       各自适用证
+   - symptomMap            症状关键词 → 优选哪一方（'A'/'B'/'C'）
+   - note                  一句话鉴别诀
+   ========================================================== */
+/* ★ 鉴别用药规则改为从 localStorage 动态加载，通过 Excel 导入/导出维护 */
+let HERB_DIFFERENTIATION_RULES = [];
+
 /* ============ 剂型规范化辅助 ============ */
 function normalizeFormType(ft){
   const s = String(ft||'').trim();
   return s || '汤剂';
-}
-function herbUniqueKey(name, formType){
-  return String(name||'').trim() + '||' + normalizeFormType(formType);
 }
 
 /* ============ 拼音 ============ */
@@ -720,7 +1099,6 @@ function getPinyinInitials(str){
 
 /* ============ 同义词 ============ */
 const DEFAULT_SYNONYM_MAP={'恶寒':['畏寒','怕冷'],'发热':['发烧','身热'],'头身疼痛':['头痛身痛','身痛','头痛'],'鼻塞':['鼻窍不通'],'流清涕':['清涕'],'流黄涕':['黄涕','浊涕'],'口渴':['口干'],'咳嗽':['咳','咳逆'],'胸闷':['胸痞'],'心悸':['心慌'],'失眠':['不寐'],'神疲乏力':['疲乏','困倦','身倦','倦怠'],'纳呆':['食欲不振','食少','纳差'],'便溏':['大便溏薄'],'便秘':['大便干结','便干'],'泄泻':['腹泻','便稀'],'头晕':['眩晕','头眩']};
-/* ============ 性能优化 A：同义词反向索引 ============ */
 let ALIAS_TO_STD = new Map();
 let _aliasIndexBuilt = false;
 
@@ -734,7 +1112,6 @@ function rebuildAliasIndex(){
     if(!Array.isArray(variants)) continue;
     for(let j=0;j<variants.length;j++){
       const alias = (variants[j]||'').trim();
-      /* 保持原始语义：先出现者胜 */
       if(alias && !ALIAS_TO_STD.has(alias)) ALIAS_TO_STD.set(alias, std);
     }
   }
@@ -753,7 +1130,6 @@ function normalizeTerm(term){
   return result;
 }
 function levenshteinDistance(a,b){if(a.length===0)return b.length;if(b.length===0)return a.length;const m=[];for(let i=0;i<=b.length;i++)m[i]=[i];for(let j=0;j<=a.length;j++)m[0][j]=j;for(let i=1;i<=b.length;i++)for(let j=1;j<=a.length;j++){const cost=a[j-1]===b[i-1]?0:1;m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+cost);}return m[b.length][a.length];}
-function isFuzzyMatch(a,b){if(!a||!b)return false;if(a===b)return true;const d=levenshteinDistance(a,b);const maxLen=Math.max(a.length,b.length);if(maxLen<=3)return false;return d<=1;}
 
 /* ============ 复合标签解析器 ============ */
 function splitByCommaTopLevel(str){const result=[];let cur='';let depth=0;for(let i=0;i<str.length;i++){const ch=str[i];if(ch==='<'){depth++;cur+=ch;continue;}if(ch==='>'){depth--;cur+=ch;continue;}if((ch===','||ch==='，'||ch==='、')&&depth===0){if(cur.trim())result.push(cur.trim());cur='';continue;}cur+=ch;}if(cur.trim())result.push(cur.trim());return result;}
@@ -786,11 +1162,6 @@ function parseCompoundLabel(rawLabel,defaultFirst,defaultSecond){
   });
   return results;
 }
-/* ============ 通用复合词拆词器：统一处理 <>、[]、() 三种语法 ============
- *  X<Y,Z>  父症状X + 修饰词（必选）→ XY, XZ
- *  X[Y,Z]  前提条件X + 主证（必选）→ XY, XZ
- *  X(Y,Z)  主证X + 可能出现的Y,Z     → X, Y, Z
- * ===================================================================== */
 function splitCompoundTerms(text){
   if(!text) return [];
   const result = [];
@@ -839,15 +1210,7 @@ function splitCompoundTerms(text){
   });
   return Array.from(new Set(result.filter(Boolean)));
 }
-
-/* 兼容旧调用名 */
-function splitSyndromeSymptoms(text){
-  return splitCompoundTerms(text);
-}
-
-/* ================================================================
- * 结构化拆词与匹配（v2）
- * ================================================================ */
+function splitSyndromeSymptoms(text){ return splitCompoundTerms(text); }
 
 function splitTopLevelCompound(str){
   const parts = [];
@@ -857,7 +1220,7 @@ function splitTopLevelCompound(str){
     if (ch === '[' || ch === '【' || ch === '〈' || ch === '<' || ch === '《' || ch === '（' || ch === '(') {
       depth++;
     } else if (ch === ']' || ch === '】' || ch === '〉' || ch === '>' || ch === '》' || ch === '）' || ch === ')') {
-      if (depth > 0) depth--;   // ★ 保护：即使不配对的右括号，depth 也不会变成负数
+      if (depth > 0) depth--;
     } else if ((ch === ',' || ch === '，' || ch === '、' || ch === '；' || ch === ';' || ch === '/' || ch === '／') && depth === 0) {
       if (cur.trim()) parts.push(cur.trim());
       cur = '';
@@ -869,7 +1232,6 @@ function splitTopLevelCompound(str){
   return parts;
 }
 
-/* ===== 括号剥离与结构化解析 ===== */
 const _ALL_BRK_STRIP = /[<>〈〉《》⟨⟩❮❯\[\]【】［］〔〕〖〗〘〙〚〛（）()｛｝{}]/g;
 const _L_EXC_RE = '[^<>〈〉《》⟨⟩❮❯\\[\\]【】［］〔〕〖〗〘〙〚〛（）()｛｝{}]';
 const _SQR_L = '[\\[【［〔〖〘〚]';
@@ -889,7 +1251,6 @@ function parseCompoundStructured(text){
     part = part.trim();
     if (!part) return;
 
-    /* 形式 A：前提[X] 或 前提[X]尾部 */
     const outerMatch = part.match(_outerRe);
     if (outerMatch) {
       const pre  = outerMatch[1].replace(_ALL_BRK_STRIP, '').trim();
@@ -904,23 +1265,11 @@ function parseCompoundStructured(text){
           splitTopLevelCompound(ym[2]).forEach(function(mod){
             const cleanMod = mod.replace(_ALL_BRK_STRIP, '').trim();
             if (!cleanMod) return;
-            result.push({
-              pre: pre,
-              parent: parent,
-              mod: cleanMod,
-              label: (pre + parent + cleanMod).replace(_ALL_BRK_STRIP, '')
-            });
+            result.push({ pre: pre, parent: parent, mod: cleanMod, label: (pre + parent + cleanMod).replace(_ALL_BRK_STRIP, '') });
           });
         } else {
           const cleanIp = ip.replace(_ALL_BRK_STRIP, '').trim();
-          if (cleanIp) {
-            result.push({
-              pre: pre,
-              parent: cleanIp,
-              mod: '',
-              label: (pre + cleanIp).replace(_ALL_BRK_STRIP, '')
-            });
-          }
+          if (cleanIp) result.push({ pre: pre, parent: cleanIp, mod: '', label: (pre + cleanIp).replace(_ALL_BRK_STRIP, '') });
         }
       });
       if (tail) {
@@ -932,7 +1281,6 @@ function parseCompoundStructured(text){
       return;
     }
 
-    /* 形式 B：父<修饰词1, 修饰词2> 或 父〈...〉 或 父⟨...⟩ */
     const ym2 = part.match(_outerAngRe);
     if (ym2) {
       const parent = ym2[1].replace(_ALL_BRK_STRIP, '').trim();
@@ -941,12 +1289,7 @@ function parseCompoundStructured(text){
       splitTopLevelCompound(inner).forEach(function(mod){
         const cleanMod = mod.replace(_ALL_BRK_STRIP, '').trim();
         if (!cleanMod) return;
-        result.push({
-          pre: '',
-          parent: parent,
-          mod: cleanMod,
-          label: (parent + cleanMod).replace(_ALL_BRK_STRIP, '')
-        });
+        result.push({ pre: '', parent: parent, mod: cleanMod, label: (parent + cleanMod).replace(_ALL_BRK_STRIP, '') });
       });
       if (tail) {
         splitTopLevelCompound(tail).forEach(function(t){
@@ -957,7 +1300,6 @@ function parseCompoundStructured(text){
       return;
     }
 
-    /* 形式 C：纯文本，剥掉所有括号 */
     const clean = part.replace(_ALL_BRK_STRIP, '').trim();
     if (clean) result.push({ pre: '', parent: clean, mod: '', label: clean });
   });
@@ -1003,8 +1345,6 @@ function getStructuredSelectedSymptoms(){
 
 function matchStructured(patient, kb, mode){
   if (!patient || !kb) return false;
-
-  /* ★ label 完全一致直接判匹配（对所有模式生效） */
   const pl = patient.label || '';
   const kl = kb.label || '';
   if (pl && kl && pl === kl) return true;
@@ -1029,6 +1369,535 @@ function matchStructured(patient, kb, mode){
 function stringsToStructured(arr){
   if (!Array.isArray(arr)) return [];
   return arr.map(function(lbl){ return lookupSymptomStructure(lbl); });
+}
+
+/* ============ 药名归一化：用于剂量规则匹配 ============ */
+function normalizeHerbNameForDose(raw){
+  let s = String(raw||'').trim();
+  if(!s) return '';
+  s = s.replace(/[（(【\[][^）)】\]]*[）)】\]]/g,'').trim();
+  s = s.replace(/\s*[\d.]+\s*[-~～]?\s*[\d.]*\s*(g|G|克|mg|毫克)?\s*$/,'').trim();
+  s = s.replace(/[，,、。；;：:]+$/,'').trim();
+  return s;
+}
+function stripHerbPrepPrefix(name){
+  const orig = String(name||'').trim();
+  if(!orig) return orig;
+  const stripped = orig.replace(/^(生|炒|炙|煅|蜜|酒|醋|盐|姜|炭|焦|制|泡|漂|蒸|煮|清|麸|土|砂|蛤粉|滑石粉|朱砂|雄黄|米|麦麸|灶心土|鲜|干)+/,'').trim();
+  if(!stripped || stripped.length < 2) return orig;
+  return stripped;
+}
+function findDoseRulesWithName(herbName){
+  if(!herbName) return null;
+  const name = normalizeHerbNameForDose(herbName);
+  if(!name) return null;
+  if(DOSE_EFFECT_RULES[name]) return {name:name, rules:DOSE_EFFECT_RULES[name]};
+  const target = stripHerbPrepPrefix(name);
+  for(const k in DOSE_EFFECT_RULES){
+    const kNorm = normalizeHerbNameForDose(k);
+    if(kNorm === name) return {name:k, rules:DOSE_EFFECT_RULES[k]};
+    if(stripHerbPrepPrefix(kNorm) === target) return {name:k, rules:DOSE_EFFECT_RULES[k]};
+  }
+  return null;
+}
+function findDoseRules(herbName){
+  const hit = findDoseRulesWithName(herbName);
+  return hit ? hit.rules : null;
+}
+
+/* ============ 剂量效应规则：核心工具函数 ============ */
+function parseDoseNumber(v){
+  if(v===undefined||v===null) return NaN;
+  const m = String(v).match(/[\d.]+/);
+  return m ? parseFloat(m[0]) : NaN;
+}
+
+function loadBuiltinDoseRules(){
+  DOSE_EFFECT_RULES = JSON.parse(JSON.stringify(BUILTIN_DOSE_RULES));
+  try{
+    localStorage.setItem('tcm_dose_effect_rules', JSON.stringify(DOSE_EFFECT_RULES));
+  }catch(e){}
+  const cnt = Object.keys(DOSE_EFFECT_RULES).length;
+  const totalRules = Object.values(DOSE_EFFECT_RULES).reduce((s,a)=>s+a.length,0);
+  showToast('✅ 已载入内置剂量规则：'+cnt+' 味药 / '+totalRules+' 条规则');
+  try{ updateStorageInfo(); }catch(e){}
+  refreshHerbDoseHints();
+  renderHistoryDiagnosis && renderHistoryDiagnosis();
+}
+function debugDoseMatch(){
+  const container = document.getElementById('medicationContent');
+  const cands = container.querySelectorAll('.herb-selectable');
+  if(cands.length === 0){
+    showToast('请先生成用药建议');
+    return;
+  }
+  const lines = [];
+  const ruleKeys = Object.keys(DOSE_EFFECT_RULES);
+  lines.push('规则库共 '+ruleKeys.length+' 味药：'+ruleKeys.join('、'));
+  lines.push('');
+  lines.push('当前建议里 '+cands.length+' 味药：');
+  cands.forEach(el=>{
+    const name = (el.dataset.name||'').trim();
+    const hit = findDoseRulesWithName(name);
+    lines.push('  · '+name+'  →  '+(hit ? ('命中【'+hit.name+'】('+hit.rules.length+'条)') : '未命中'));
+  });
+  const txt = lines.join('\n');
+  console.log(txt);
+  const w = window.open('', '_blank', 'width=640,height=520');
+  if(w){
+    w.document.write('<pre style="font-family:Consolas,monospace;font-size:13px;padding:16px;white-space:pre-wrap;">'+esc(txt)+'</pre>');
+    w.document.close();
+  }
+  showToast('调试信息已输出到控制台和新窗口');
+}
+
+function clearDoseRules(){
+  if(!confirm('确定清空所有剂量效应规则吗？')) return;
+  DOSE_EFFECT_RULES = {};
+  try{ localStorage.removeItem('tcm_dose_effect_rules'); }catch(e){}
+  showToast('已清空剂量效应规则');
+  try{ updateStorageInfo(); }catch(e){}
+  refreshHerbDoseHints();
+}
+function importDoseRuleTable(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      let map = {};
+      if(file.name.endsWith('.json')){
+        map = JSON.parse(e.target.result);
+        if(!map || typeof map !== 'object') throw new Error('JSON格式不正确');
+      }else{
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', blankrows:false});
+        if(!rows || rows.length < 2) throw new Error('工作表无数据');
+
+        const header = rows[0].map(c => String(c||'').trim());
+        const findCol = function(){
+          const kws = Array.prototype.slice.call(arguments);
+          for(let i=0;i<header.length;i++) for(let k=0;k<kws.length;k++) if(header[i] === kws[k]) return i;
+          for(let i=0;i<header.length;i++) for(let k=0;k<kws.length;k++) if(header[i].indexOf(kws[k]) >= 0) return i;
+          return -1;
+        };
+        const c = {
+          herb:   findCol('药物','品名','药名'),
+          min:    findCol('剂量下限(g)','剂量下限','最小用量','下限'),
+          max:    findCol('剂量上限(g)','剂量上限','最大用量','上限'),
+          raw:    findCol('原文剂量'),
+          level:  findCol('剂量等级'),
+          effect: findCol('功效/效应','功效','效应'),
+          indic:  findCol('适用证/场景','适用证','主治'),
+          cond:   findCol('条件（炮制/部位/煎法/配伍）','条件'),
+          risk:   findCol('风险/禁忌','风险','禁忌'),
+          prio:   findCol('优先级等级','优先级'),
+          auto:   findCol('自动推荐'),
+          block:  findCol('硬拦截'),
+          tags:   findCol('机器标签'),
+          note:   findCol('备注')
+        };
+        if(c.herb < 0) throw new Error('未识别到「药物」列');
+        const gv = function(row,i){ return (i>=0 && i<row.length) ? String(row[i]==null?'':row[i]).trim() : ''; };
+
+        for(let r=1; r<rows.length; r++){
+          const row = rows[r]; if(!row) continue;
+          const herb = gv(row, c.herb);
+          if(!herb) continue;
+          if(!map[herb]) map[herb] = [];
+          map[herb].push({
+            min: gv(row, c.min),
+            max: gv(row, c.max),
+            raw: gv(row, c.raw),
+            level: gv(row, c.level),
+            effect: gv(row, c.effect),
+            indication: gv(row, c.indic),
+            condition:  gv(row, c.cond),
+            risk:   gv(row, c.risk),
+            priority: gv(row, c.prio),
+            auto:   gv(row, c.auto),
+            block:  gv(row, c.block) || 'N',
+            tags:   gv(row, c.tags),
+            note:   gv(row, c.note)
+          });
+        }
+      }
+      if(Object.keys(map).length === 0) throw new Error('未解析到任何剂量规则');
+      DOSE_EFFECT_RULES = map;
+      try{ localStorage.setItem('tcm_dose_effect_rules', JSON.stringify(map)); }catch(e){}
+      const cnt = Object.keys(map).length;
+      const totalRules = Object.values(map).reduce((s,a)=>s+a.length,0);
+      showToast('✅ 剂量效应规则导入：'+cnt+' 味药 / '+totalRules+' 条规则');
+      try{ updateStorageInfo(); }catch(e){}
+      refreshHerbDoseHints();
+    }catch(err){ showToast('❌ 导入失败：'+err.message); console.error(err); }
+  };
+  if(file.name.endsWith('.json')) reader.readAsText(file);
+  else reader.readAsArrayBuffer(file);
+  event.target.value = '';
+}
+function exportDoseRules(){
+  if(Object.keys(DOSE_EFFECT_RULES).length === 0){ showToast('⚠️ 暂无剂量规则'); return; }
+  const rows = [['药物','剂量下限(g)','剂量上限(g)','原文剂量','剂量等级','功效/效应','适用证/场景','条件','风险/禁忌','优先级等级','自动推荐','硬拦截','机器标签','备注']];
+  Object.keys(DOSE_EFFECT_RULES).forEach(function(herb){
+    DOSE_EFFECT_RULES[herb].forEach(function(r){
+      rows.push([herb, r.min, r.max, r.raw, r.level, r.effect, r.indication, r.condition, r.risk, r.priority, r.auto, r.block, r.tags, r.note]);
+    });
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '剂量效应规则');
+  const w = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([w], {type:'application/octet-stream'}));
+  a.download = '剂量效应规则_'+new Date().toISOString().slice(0,10)+'.xlsx';
+  a.click();
+  showToast('📤 已导出剂量规则');
+}
+
+/* ==========================================================
+   ★ 鉴别用药规则：Excel 导入/导出
+   列结构（17 列）：
+   规则ID|药物A|药物B|药物C|共有功效|A独有功效|B独有功效|C独有功效|
+   A适用证|B适用证|C适用证|症状→A|症状→B|症状→C|鉴别诀|来源|启用
+   ========================================================== */
+function importDiffRulesExcel(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', blankrows:false});
+      if(!rows || rows.length < 2) throw new Error('工作表无数据');
+
+      const header = rows[0].map(c => String(c||'').trim());
+      const findCol = function(){
+        const kws = Array.prototype.slice.call(arguments);
+        for(let i=0;i<header.length;i++) for(let k=0;k<kws.length;k++) if(header[i] === kws[k]) return i;
+        for(let i=0;i<header.length;i++) for(let k=0;k<kws.length;k++) if(header[i].indexOf(kws[k]) >= 0) return i;
+        return -1;
+      };
+      const c = {
+        id:          findCol('规则ID','规则编号','ID'),
+        herbA:       findCol('药物A','药A','药物1'),
+        herbB:       findCol('药物B','药B','药物2'),
+        herbC:       findCol('药物C','药C','药物3'),
+        shared:      findCol('共有功效','共同功效'),
+        uniqueA:     findCol('A独有功效','A独有'),
+        uniqueB:     findCol('B独有功效','B独有'),
+        uniqueC:     findCol('C独有功效','C独有'),
+        indicationA: findCol('A适用证','A适用'),
+        indicationB: findCol('B适用证','B适用'),
+        indicationC: findCol('C适用证','C适用'),
+        symA:        findCol('症状→A','症状A','症状-A'),
+        symB:        findCol('症状→B','症状B','症状-B'),
+        symC:        findCol('症状→C','症状C','症状-C'),
+        note:        findCol('鉴别诀','鉴别要点','一句话鉴别'),
+        source:      findCol('来源','出处'),
+        enabled:     findCol('启用','是否启用')
+      };
+      if(c.herbA < 0 || c.herbB < 0) throw new Error('未识别到「药物A」或「药物B」列');
+
+      const gv = function(row,i){ return (i>=0 && i<row.length) ? String(row[i]==null?'':row[i]).trim() : ''; };
+      const splitList = function(s){
+        if(!s) return [];
+        return String(s).split(/[、,，;；]+/).map(x=>x.trim()).filter(Boolean);
+      };
+      const buildSymptomMap = function(symA, symB, symC){
+        const map = {};
+        splitList(symA).forEach(k=>{ if(k && !map[k]) map[k] = 'A'; });
+        splitList(symB).forEach(k=>{ if(k && !map[k]) map[k] = 'B'; });
+        splitList(symC).forEach(k=>{ if(k && !map[k]) map[k] = 'C'; });
+        return map;
+      };
+
+      const rules = [];
+      let skipped = 0;
+      for(let r=1; r<rows.length; r++){
+        const row = rows[r]; if(!row) continue;
+        const herbA = gv(row, c.herbA);
+        const herbB = gv(row, c.herbB);
+        if(!herbA || !herbB){ skipped++; continue; }
+        const enabled = gv(row, c.enabled).toUpperCase();
+        if(enabled === 'N' || enabled === 'NO' || enabled === '否'){ skipped++; continue; }
+
+        const rule = {
+          id: gv(row, c.id) || ('DIFF-IMP-' + r),
+          groupA: [herbA],
+          groupB: [herbB],
+          shared: splitList(gv(row, c.shared)),
+          uniqueA: splitList(gv(row, c.uniqueA)),
+          uniqueB: splitList(gv(row, c.uniqueB)),
+          indicationA: splitList(gv(row, c.indicationA)),
+          indicationB: splitList(gv(row, c.indicationB)),
+          symptomMap: buildSymptomMap(gv(row, c.symA), gv(row, c.symB), gv(row, c.symC)),
+          note: gv(row, c.note),
+          source: gv(row, c.source) || '导入'
+        };
+        const herbC = gv(row, c.herbC);
+        if(herbC){
+          rule.groupC = [herbC];
+          rule.uniqueC = splitList(gv(row, c.uniqueC));
+          rule.indicationC = splitList(gv(row, c.indicationC));
+        }
+        rules.push(rule);
+      }
+
+      if(rules.length === 0) throw new Error('未解析到任何有效规则');
+      HERB_DIFFERENTIATION_RULES = rules;
+      try{ localStorage.setItem('tcm_herb_diff_rules', JSON.stringify(rules)); }catch(e){}
+      showToast('✅ 鉴别规则导入：'+rules.length+' 组'+(skipped?('（跳过 '+skipped+' 条空行/停用）'):''));
+      try{ updateStorageInfo(); }catch(e){}
+    }catch(err){
+      showToast('❌ 导入失败：'+err.message);
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+}
+
+function exportDiffRulesExcel(){
+  if(!HERB_DIFFERENTIATION_RULES || HERB_DIFFERENTIATION_RULES.length === 0){
+    showToast('⚠️ 暂无鉴别规则');
+    return;
+  }
+  const rows = [[
+    '规则ID','药物A','药物B','药物C','共有功效',
+    'A独有功效','B独有功效','C独有功效',
+    'A适用证','B适用证','C适用证',
+    '症状→A','症状→B','症状→C',
+    '鉴别诀','来源','启用'
+  ]];
+  HERB_DIFFERENTIATION_RULES.forEach(function(rule){
+    const symA = [], symB = [], symC = [];
+    const sm = rule.symptomMap || {};
+    for(const k in sm){
+      if(sm[k] === 'A') symA.push(k);
+      else if(sm[k] === 'B') symB.push(k);
+      else if(sm[k] === 'C') symC.push(k);
+    }
+    rows.push([
+      rule.id || '',
+      (rule.groupA||[]).join('、'),
+      (rule.groupB||[]).join('、'),
+      (rule.groupC||[]).join('、'),
+      (rule.shared||[]).join('、'),
+      (rule.uniqueA||[]).join('、'),
+      (rule.uniqueB||[]).join('、'),
+      (rule.uniqueC||[]).join('、'),
+      (rule.indicationA||[]).join('、'),
+      (rule.indicationB||[]).join('、'),
+      (rule.indicationC||[]).join('、'),
+      symA.join(','),
+      symB.join(','),
+      symC.join(','),
+      rule.note || '',
+      rule.source || '',
+      'Y'
+    ]);
+  });
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [
+    {wch:12},{wch:10},{wch:10},{wch:10},{wch:24},
+    {wch:28},{wch:28},{wch:28},
+    {wch:32},{wch:32},{wch:32},
+    {wch:32},{wch:32},{wch:32},
+    {wch:44},{wch:16},{wch:6}
+  ];
+  ws['!freeze'] = {xSplit:0, ySplit:1};
+  XLSX.utils.book_append_sheet(wb, ws, '鉴别规则');
+  const w = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([w], {type:'application/octet-stream'}));
+  a.download = '中药鉴别规则_'+new Date().toISOString().slice(0,10)+'.xlsx';
+  a.click();
+  showToast('📤 已导出鉴别规则（'+HERB_DIFFERENTIATION_RULES.length+' 组）');
+}
+function clearDiffRules(){
+  if(!confirm('确定清空所有鉴别用药规则吗？')) return;
+  HERB_DIFFERENTIATION_RULES = [];
+  try{ localStorage.removeItem('tcm_herb_diff_rules'); }catch(e){}
+  showToast('已清空鉴别规则');
+  try{ updateStorageInfo(); }catch(e){}
+}
+
+function loadBuiltinDiffRules(){
+  /* 内置规则示例（如需完整 197 条，请通过 Excel 导入） */
+  HERB_DIFFERENTIATION_RULES = [
+    {id:'DIFF-001',groupA:['麻黄'],groupB:['香薷'],shared:['发汗解表','利水消肿'],uniqueA:['宣肺平喘','发汗力强'],uniqueB:['化湿和中','"夏月之麻黄"'],indicationA:['风寒表实无汗','肺气壅遏咳喘','风水水肿'],indicationB:['夏季风寒感冒','暑湿证','水肿兼暑湿'],symptomMap:{'咳喘':'A','喘息':'A','肺气壅遏':'A','无汗':'A','风寒表实':'A','风水':'A','夏季感冒':'B','暑湿':'B','暑天感寒':'B','呕吐':'B','胸闷':'B','夏月':'B'},note:'无汗而喘 → 麻黄；夏月感寒或兼暑湿 → 香薷',source:'原速查表'},
+    {id:'DIFF-002',groupA:['麻黄'],groupB:['桂枝'],shared:['发汗解表','风寒表证'],uniqueA:['宣肺平喘','利水消肿','发汗力强'],uniqueB:['温通经脉','助阳化气','发汗力缓'],indicationA:['风寒表实无汗','肺气壅遏咳喘'],indicationB:['风寒表虚有汗','胸阳不振','经寒血滞'],symptomMap:{'无汗':'A','咳喘':'A','水肿':'A','表实':'A','风水':'A','有汗':'B','心悸':'B','胸痹':'B','经寒':'B','痛经':'B','阳虚':'B'},note:'有汗无汗均可 → 桂枝；无汗而喘 → 麻黄',source:'原速查表'}
+    /* ... 建议通过 Excel 导入完整 197 条，这里仅保留 2 条作为兜底 */
+  ];
+  try{ localStorage.setItem('tcm_herb_diff_rules', JSON.stringify(HERB_DIFFERENTIATION_RULES)); }catch(e){}
+  showToast('✅ 已载入内置鉴别规则（'+HERB_DIFFERENTIATION_RULES.length+' 组）建议通过 Excel 导入完整规则');
+  try{ updateStorageInfo(); }catch(e){}
+}
+/* ============ 剂量提示徽章 ============ */
+function getDoseHintHTML(herbName){
+  if(!herbName) return '';
+  const name = String(herbName).trim();
+  const rules = findDoseRules(name);
+  if(!rules || rules.length === 0) return '';
+
+  const blocked   = rules.filter(r => r.block === 'Y');
+  const riskRules = rules.filter(r => r.risk && r.risk !== '—' && r.risk !== '无' && r.block !== 'Y');
+  const diffRules = rules.filter(r => r.effect && r.level !== '未定' && r.block !== 'Y');
+  const vagueRules= rules.filter(r => r.level === '未定' && r.block !== 'Y');
+  const aRules    = rules.filter(r => r.priority === 'A');
+
+  let icon='💡', cls='dose-hint-info', shortTag='', title='';
+
+  if(blocked.length){
+    icon='🚫'; cls='dose-hint-danger';
+    shortTag='禁用剂量';
+    title = '硬拦截：' + blocked.map(r => (r.raw||'') + ' ' + (r.risk||r.note||'')).join('；');
+  }else if(riskRules.length){
+    icon='⚠'; cls='dose-hint-warn';
+    shortTag='注意风险';
+    title = '风险：' + riskRules.map(r => (r.raw||'') + ' ' + r.risk).join('；');
+  }else if(diffRules.length > 1){
+    icon='⚖'; cls='dose-hint-dose';
+    const pick = aRules[0] || diffRules[0];
+    shortTag = (pick.effect||'').length > 8 ? pick.effect.slice(0,8)+'…' : (pick.effect||'剂量差异');
+    title = '剂量差异：' + diffRules.map(r => {
+      const dose = r.raw || ((r.min||'?')+'-'+(r.max||'?')+'g');
+      return dose + ' → ' + r.effect;
+    }).join('；');
+  }else if(diffRules.length === 1){
+    icon='💡'; cls='dose-hint-info';
+    shortTag = (diffRules[0].effect||'').length > 8 ? diffRules[0].effect.slice(0,8)+'…' : diffRules[0].effect;
+    title = diffRules[0].effect + (diffRules[0].indication ? '（' + diffRules[0].indication + '）' : '');
+  }else if(vagueRules.length){
+    icon='❓'; cls='dose-hint-vague';
+    shortTag='需复核';
+    title = '原文仅「少用/多用/大量」，未量化，需人工复核';
+  }else{
+    return '';
+  }
+
+  const safeName = name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  return '<span class="herb-dose-hint '+cls+'" data-herb="'+esc(name)+'" '+
+         'title="'+esc(title)+'" '+
+         'onclick="event.stopPropagation();showDoseDetail(\''+safeName+'\')">'+
+         icon+' '+esc(shortTag)+'</span>';
+}
+
+function refreshHerbDoseHints(){
+  const container = document.getElementById('medicationContent');
+  if(!container) return;
+  container.querySelectorAll('.herb-selectable').forEach(function(el){
+    const name = (el.dataset.name||'').trim();
+    if(!name) return;
+    let next = el.nextElementSibling;
+    if(next && next.classList && next.classList.contains('herb-dose-hint')){
+      next.remove();
+    }
+    const hintHTML = getDoseHintHTML(name);
+    if(hintHTML){
+      const tmp = document.createElement('span');
+      tmp.innerHTML = hintHTML;
+      el.parentNode.insertBefore(tmp.firstChild, el.nextSibling);
+    }
+  });
+  try{ refreshHerbSelectableStates(container); }catch(e){}
+}
+
+/* ============ 剂量详情弹窗 ============ */
+function showDoseDetail(herbName){
+  const hit = findDoseRulesWithName(herbName);
+  const rules = hit ? hit.rules : null;
+  if(!rules || rules.length === 0){ showToast('该药暂无剂量规则'); return; }
+
+  const stdName = hit.name;
+  const title = (stdName === herbName) ? stdName : (stdName + '（' + herbName + '）');
+  document.getElementById('doseDetailTitle').textContent = '⚖ ' + title + ' — 剂量-效应规则';
+
+  const sorted = rules.slice().sort(function(a,b){
+    const na = parseDoseNumber(a.min), nb = parseDoseNumber(b.min);
+    if(!isNaN(na) && !isNaN(nb)) return na - nb;
+    if(!isNaN(na)) return -1;
+    if(!isNaN(nb)) return 1;
+    return 0;
+  });
+
+  let html = '';
+  html += '<div style="font-size:12.5px;color:#5b748b;margin-bottom:8px;">'+
+          '共 <strong>'+sorted.length+'</strong> 条剂量段规则，'+
+          '<span style="color:#27ae60;">A=首选</span> · '+
+          '<span style="color:#2c6fa8;">B=常用</span> · '+
+          '<span style="color:#a9740a;">C=慎用</span> · '+
+          '<span style="color:#c0392b;">D=禁用/风险</span>'+
+          '</div>';
+
+  html += '<table class="dose-detail-table">';
+  html += '<thead><tr>'+
+          '<th style="width:16%;">剂量</th>'+
+          '<th style="width:8%;">等级</th>'+
+          '<th style="width:22%;">功效/效应</th>'+
+          '<th style="width:22%;">适用证</th>'+
+          '<th style="width:20%;">风险/条件</th>'+
+          '<th style="width:12%;">推荐</th>'+
+          '</tr></thead><tbody>';
+
+  sorted.forEach(function(r){
+    const doseText = r.raw || ((r.min||'?')+'-'+(r.max||'?')+'g');
+    let rowCls = '';
+    if(r.block === 'Y')       rowCls = 'row-block';
+    else if(r.priority==='A') rowCls = 'row-A';
+    else if(r.priority==='B') rowCls = 'row-B';
+    else if(r.priority==='C') rowCls = 'row-C';
+    else if(r.level==='未定') rowCls = 'row-vague';
+
+    let prioBadge = '';
+    if(r.priority){
+      const map = {A:'b-A', B:'b-B', C:'b-C', D:'b-D'};
+      prioBadge = '<span class="bdg '+(map[r.priority]||'b-N')+'">'+esc(r.priority)+'</span>';
+    }
+    if(r.auto) prioBadge += ' <span style="font-size:11px;color:#5b748b;">'+esc(r.auto)+'</span>';
+    if(r.block === 'Y') prioBadge += ' <span class="bdg b-warn">硬拦截</span>';
+
+    const riskCell = (r.risk && r.risk!=='—' && r.risk!=='无' ? '<span style="color:#c0392b;">'+esc(r.risk)+'</span>' : '—') +
+                     (r.condition && r.condition!=='—' ? '<br><span style="color:#5b748b;font-size:12px;">'+esc(r.condition)+'</span>' : '') +
+                     (r.note ? '<br><span style="color:#8a6d3b;font-size:12px;">'+esc(r.note)+'</span>' : '');
+
+    html += '<tr class="'+rowCls+'">'+
+      '<td style="font-weight:600;">'+esc(doseText)+'</td>'+
+      '<td>'+esc(r.level||'—')+'</td>'+
+      '<td>'+esc(r.effect||'—')+'</td>'+
+      '<td>'+esc(r.indication||'—')+'</td>'+
+      '<td>'+riskCell+'</td>'+
+      '<td>'+prioBadge+'</td>'+
+      '</tr>';
+  });
+
+  html += '</tbody></table>';
+  html += '<div style="margin-top:10px;font-size:12px;color:#95a5a6;border-top:1px solid #eef2ef;padding-top:8px;">'+
+          '⚠️ 大剂量/超大剂量/硬拦截规则仅供专业医师参考，系统不会自动推荐。'+
+          '</div>';
+
+  document.getElementById('doseDetailBody').innerHTML = html;
+  document.getElementById('doseDetailModal').classList.add('active');
+}
+function closeDoseDetail(){
+  document.getElementById('doseDetailModal').classList.remove('active');
+}
+function getDoseRuleBrief(herbName){
+  const rules = findDoseRules(herbName);
+  if(!rules || rules.length === 0) return '';
+  const blocked = rules.filter(r=>r.block==='Y');
+  if(blocked.length) return '【剂量警示】'+blocked.map(r=>(r.raw||'')+'→'+(r.risk||r.note||'硬拦截')).join('；');
+  const diff = rules.filter(r=>r.effect && r.level!=='未定' && r.block!=='Y');
+  if(diff.length > 1){
+    return '【剂量差异】'+diff.slice(0,5).map(r=>{
+      const d = r.raw || ((r.min||'?')+'-'+(r.max||'?')+'g');
+      return d+'→'+r.effect;
+    }).join('；');
+  }
+  return '';
 }
 
 /* ============ 导入1：症状分类 ============ */
@@ -1201,7 +2070,7 @@ function importWeightTable(event){
     SYMPTOM_TO_SYNDROME_MAP=newSympMap;
     WEIGHT_TABLE_RAW=rawRows;
     try{
-            const kbEntries=[];
+      const kbEntries=[];
       rawRows.forEach(function(row){
         if(!row.disease||!row.syndrome)return;
         const primaryStr = splitSyndromeSymptoms(row.primary);
@@ -1292,7 +2161,7 @@ function importKnowledgeExcel(e){
         const pulse=gv(row,puk).split(/[、，,、\s]+/).filter(s=>s.trim());
         const formula=gv(row,fk);
         if(formula)formulaCount++;
-                nb.push({
+        nb.push({
           disease:d, pattern:p,
           primary: pr, secondary: sec,
           primaryStruct: parseCompoundStructured(gv(row,prk)),
@@ -1981,7 +2850,7 @@ function toggleCollapsible(id, forceExpand){
     if(menu.classList.contains('show')){menu.classList.remove('show');return;}
     const r=toggle.getBoundingClientRect();
     let top=r.bottom+4,left=r.left-100;
-    if(top+420>window.innerHeight)top=Math.max(10,r.top-420);
+    if(top+460>window.innerHeight)top=Math.max(10,r.top-460);
     if(left+340>window.innerWidth)left=Math.max(10,window.innerWidth-350);
     if(left<10)left=10;
     menu.style.top=top+'px';menu.style.left=left+'px';menu.classList.add('show');
@@ -2003,7 +2872,6 @@ function renderHistoryTags(){
 document.getElementById('isVegetarian').addEventListener('change',function(){isVegetarian=this.checked;saveDailySession();});
 
 /* ============ 辨证引擎 ============ */
-/* ============ 性能优化 B：证型结构化结果缓存 ============ */
 const _kbPrimaryCache   = new WeakMap();
 const _kbSecondaryCache = new WeakMap();
 
@@ -2033,7 +2901,6 @@ function inferPatterns(symptoms){
 
   const mode = getMatchMode();
 
-  /* 1) 按"规范化后的父症状"给患者症状分桶 */
   const patientByParent = new Map();
   for(let i=0;i<patientStruct.length;i++){
     const p = patientStruct[i];
@@ -2043,8 +2910,6 @@ function inferPatterns(symptoms){
     arr.push(p);
   }
 
-  /* 2) 构建知识库"规范化父症状 → 结构位置"倒排索引 */
-  /*    说明：索引 key 使用 normalizeTerm(parent)，保证与 matchStructured 的 parent 比较规则完全一致 */
   const primaryByParent   = new Map();
   const secondaryByParent = new Map();
 
@@ -2069,8 +2934,7 @@ function inferPatterns(symptoms){
     }
   }
 
-  /* 3) 遍历患者症状，只在该父症状对应的桶里做 matchStructured */
-  const matchedPSets = new Map();   // idx → Set<ki>
+  const matchedPSets = new Map();
   const matchedSSets = new Map();
 
   for(let i=0;i<patientStruct.length;i++){
@@ -2102,7 +2966,6 @@ function inferPatterns(symptoms){
     }
   }
 
-  /* 4) 逐条证型计算置信度（公式与原实现完全一致） */
   const results = [];
   for(let idx=0; idx<N; idx++){
     const item = KNOWLEDGE_BASE[idx];
@@ -2112,7 +2975,6 @@ function inferPatterns(symptoms){
     const pSet = matchedPSets.get(idx);
     const sSet = matchedSSets.get(idx);
 
-    /* 按 np / ns 原始顺序输出 matched 与 total，保证显示顺序与原来一致 */
     let pMatch = 0, sMatch = 0;
     const matchedP = [], matchedS = [], totalP = [], totalS = [];
     for(let i=0;i<np.length;i++){
@@ -2176,17 +3038,17 @@ function runDiagnosis(){
 function displayResults(results){
   const area=document.getElementById('resultArea');
   const modeLabel = {strict:'严格', normal:'标准', loose:'宽松'}[getMatchMode()] || '标准';
-document.getElementById('resultCount').textContent = '找到 ' + results.length + ' 个候选证型 [' + modeLabel + '模式]';
+  document.getElementById('resultCount').textContent = '找到 ' + results.length + ' 个候选证型 [' + modeLabel + '模式]';
   if(!results.length){area.innerHTML='<div class="empty-state">无匹配证型</div>';return;}
   let html='';
-const MAX_RESULT_RENDER = 80;
-const renderList = results.slice(0, MAX_RESULT_RENDER);
-if(results.length > MAX_RESULT_RENDER){
-  html += '<div style="margin-bottom:10px;padding:8px 12px;background:#fef5e7;border-left:4px solid #e67e22;border-radius:6px;font-size:13px;color:#8a6d3b;">'
-       + '⚠️ 共匹配到 <strong>'+results.length+'</strong> 个证型，为保证流畅仅显示置信度最高的前 '
-       + '<strong>'+MAX_RESULT_RENDER+'</strong> 个。可切换更严格的匹配模式或减少症状以缩小范围。'
-       + '</div>';
-}
+  const MAX_RESULT_RENDER = 80;
+  const renderList = results.slice(0, MAX_RESULT_RENDER);
+  if(results.length > MAX_RESULT_RENDER){
+    html += '<div style="margin-bottom:10px;padding:8px 12px;background:#fef5e7;border-left:4px solid #e67e22;border-radius:6px;font-size:13px;color:#8a6d3b;">'
+         + '⚠️ 共匹配到 <strong>'+results.length+'</strong> 个证型，为保证流畅仅显示置信度最高的前 '
+         + '<strong>'+MAX_RESULT_RENDER+'</strong> 个。可切换更严格的匹配模式或减少症状以缩小范围。'
+         + '</div>';
+  }
   renderList.forEach(r=>{
     const conf=Math.round(r.confidence*100);let lv='low',lb='参考';
     if(conf>=80){lv='high';lb='高度推荐';}else if(conf>=50){lv='medium';lb='可能推荐';}
@@ -2230,7 +3092,6 @@ if(results.length > MAX_RESULT_RENDER){
   });
   renderHistoryDiagnosis();updatePatternCountDisplay();
 }
-/* ============ 辨证匹配模式（医生可选）============ */
 const MATCH_MODE_KEY = 'tcm_match_mode';
 
 function getMatchMode(){
@@ -2244,7 +3105,6 @@ function setMatchMode(m){
     const label = {strict:'严格模式（完全一致）', normal:'标准模式（允许1字差）', loose:'宽松模式（允许2字差）'}[m];
     showToast('🔍 匹配模式已切换为：' + label);
   }
-  /* 如果已有辨证结果，自动重新辨证 */
   try{
     if(typeof CURRENT_RESULTS !== 'undefined' && CURRENT_RESULTS && CURRENT_RESULTS.length > 0){
       const syms = getSymptomsForDiagnosis();
@@ -2301,9 +3161,12 @@ function updateStorageInfo(){
   const wRaw=WEIGHT_TABLE_RAW.length;
   const wFormula=WEIGHT_TABLE_RAW.filter(r=>r&&r.formula).length;
   const kbWithFormula=KNOWLEDGE_BASE.filter(x=>x.formula).length;
-  if(el)el.textContent='📦 本地 (症状'+ALL_TAGS.length+'[舌'+tongueN+'/脉'+pulseN+']，诊疗'+KNOWLEDGE_BASE.length+'[方剂'+kbWithFormula+']，中药'+HERB_DATABASE.length+'，方剂库'+FORMULA_DATABASE.length+'，赋分原'+wRaw+'[方剂'+wFormula+'])';
+  const doseHerbs = Object.keys(DOSE_EFFECT_RULES).length;
+  const doseRules = Object.values(DOSE_EFFECT_RULES).reduce((s,a)=>s+a.length,0);
+  if(el)el.textContent='📦 本地 (症状'+ALL_TAGS.length+'[舌'+tongueN+'/脉'+pulseN+']，诊疗'+KNOWLEDGE_BASE.length+'[方剂'+kbWithFormula+']，中药'+HERB_DATABASE.length+'，方剂库'+FORMULA_DATABASE.length+'，剂量规则'+doseHerbs+'药/'+doseRules+'条)';
   const h=document.getElementById('herbCountDisplay');
-  if(h)h.textContent='中药数据库：'+HERB_DATABASE.length+' 种 | 经典方剂：'+FORMULA_DATABASE.length+' 首 | 诊疗库含方剂：'+kbWithFormula+' 条';
+    const diffCount = (typeof HERB_DIFFERENTIATION_RULES !== 'undefined') ? HERB_DIFFERENTIATION_RULES.length : 0;
+  if(h)h.textContent='中药数据库：'+HERB_DATABASE.length+' 种 | 经典方剂：'+FORMULA_DATABASE.length+' 首 | 诊疗库含方剂：'+kbWithFormula+' 条 | 剂量规则：'+doseHerbs+' 药 / '+doseRules+' 条 | 鉴别规则：'+diffCount+' 组';
 }
 function startNewPatient(){
   const has=document.getElementById('pName').value.trim()!==''||document.querySelectorAll('.symptom-tag.active').length>0||medicalHistoryItems.length>0;
@@ -2483,13 +3346,32 @@ function loadStoredData(){
   try{const s=localStorage.getItem('tcm_herb_database_full');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length>0)HERB_DATABASE=d;}}catch(e){}
   try{const s=localStorage.getItem('tcm_formula_database');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length>0)FORMULA_DATABASE=d;}}catch(e){}
   try{const s=localStorage.getItem('tcm_synonym_map');if(s){const d=JSON.parse(s);SYNONYM_MAP={...DEFAULT_SYNONYM_MAP,...d};}else SYNONYM_MAP={...DEFAULT_SYNONYM_MAP};}catch(e){SYNONYM_MAP={...DEFAULT_SYNONYM_MAP};}
-rebuildAliasIndex();
+  rebuildAliasIndex();
   try{const s=localStorage.getItem('tcm_symptom_syndrome_map');if(s){const d=JSON.parse(s);if(d&&typeof d==='object')SYMPTOM_TO_SYNDROME_MAP=d;}}catch(e){SYMPTOM_TO_SYNDROME_MAP={};}
   try{const s=localStorage.getItem('tcm_herb_pairs');if(s){const d=JSON.parse(s);if(d&&typeof d==='object')HERB_PAIR_MAP=d;}}catch(e){HERB_PAIR_MAP={};}
   try{const s=localStorage.getItem('tcm_weight_table_raw');if(s){const d=JSON.parse(s);if(Array.isArray(d))WEIGHT_TABLE_RAW=d;}}catch(e){WEIGHT_TABLE_RAW=[];}
+  /* ★ 加载剂量效应规则 */
+  try{
+    const s=localStorage.getItem('tcm_dose_effect_rules');
+    if(s){
+      const d=JSON.parse(s);
+      if(d && typeof d==='object' && Object.keys(d).length>0) DOSE_EFFECT_RULES=d;
+    }
+  }catch(e){ DOSE_EFFECT_RULES={}; }
+  /* 首次使用：自动载入内置剂量规则 */
+  if(Object.keys(DOSE_EFFECT_RULES).length===0){
+    DOSE_EFFECT_RULES = JSON.parse(JSON.stringify(BUILTIN_DOSE_RULES));
+  }
+  /* ★ 加载鉴别用药规则 */
+  try{
+    const s = localStorage.getItem('tcm_herb_diff_rules');
+    if(s){
+      const d = JSON.parse(s);
+      if(Array.isArray(d) && d.length > 0) HERB_DIFFERENTIATION_RULES = d;
+    }
+  }catch(e){ HERB_DIFFERENTIATION_RULES = []; }
 }
 function init(){
-  /* 初始化匹配模式下拉 */
   try{
     const sel = document.getElementById('matchModeSelect');
     if(sel){
@@ -2560,11 +3442,15 @@ function init(){
         if(e.target===this){
           if(this.id==='addTagModal')closeAddTagModal();
           if(this.id==='synonymModal')closeSynonymModal();
+          if(this.id==='doseDetailModal')closeDoseDetail();
         }
       });
     });
   }catch(e){console.error('[init-9 遮罩]',e);}
-  try{ showToast('🩺 系统已就绪'); }catch(e){console.error('[init-10 toast]',e);}
+  try{
+  showToast('🩺 系统已就绪（剂量规则：'+Object.keys(DOSE_EFFECT_RULES).length+' 味药，鉴别规则：'+
+    (typeof HERB_DIFFERENTIATION_RULES!=='undefined'?HERB_DIFFERENTIATION_RULES.length:0)+' 组）');
+}catch(e){console.error('[init-10 toast]',e);}
 }
 function initPatientSearch(){
   const input=document.getElementById('patientSearch');
@@ -2656,7 +3542,7 @@ function loadPatient(p){
   if(getSelectedSymptoms().length === 0){
     restoreSymptomsFromLatestPrescription(p.id, p.name);
   }
-    selectedHerbs=[];
+  selectedHerbs=[];
   activeHistoryPatterns.clear();
   loadHistoryForPatient(p.id);
   updateSymptomCount();
@@ -2832,6 +3718,73 @@ function exportSynonymExcel(){
 function openSynonymModal(){document.getElementById('synonymModal').classList.add('active');renderSynonymTable();}
 function closeSynonymModal(){document.getElementById('synonymModal').classList.remove('active');}
 
+/* ==========================================================
+   ★ 鉴别优选：检测候选药对 + 根据症状决策
+   ========================================================== */
+function detectHerbDifferentiation(candidateNames){
+  if(!candidateNames || candidateNames.length === 0) return [];
+  const normMap = new Map();
+  candidateNames.forEach(n=>{
+    const norm = normalizeHerbNameForDose(n);
+    const stripped = stripHerbPrepPrefix(norm);
+    if(norm) normMap.set(norm, n);
+    if(stripped && stripped !== norm) normMap.set(stripped, n);
+  });
+
+  const hits = [];
+  HERB_DIFFERENTIATION_RULES.forEach(rule=>{
+    const normList = arr => (arr||[]).map(n=>stripHerbPrepPrefix(normalizeHerbNameForDose(n)));
+    const namesA = normList(rule.groupA);
+    const namesB = normList(rule.groupB);
+    const namesC = normList(rule.groupC);
+
+    const findHit = (arr) => {
+      if(!arr.length) return null;
+      for(const k of normMap.keys()){
+        if(arr.includes(stripHerbPrepPrefix(k))) return normMap.get(k);
+      }
+      return null;
+    };
+    const hitA = findHit(namesA);
+    const hitB = findHit(namesB);
+    const hitC = namesC.length ? findHit(namesC) : null;
+
+    const hitCount = (hitA?1:0) + (hitB?1:0) + (hitC?1:0);
+    if(hitCount >= 2){
+      hits.push(Object.assign({}, rule, {matchedA:hitA, matchedB:hitB, matchedC:hitC}));
+    }
+  });
+  return hits;
+}
+
+function decidePreferredGroup(rule, selectedSymptoms){
+  if(!rule || !rule.symptomMap) return {preferred:null, votes:{A:0,B:0,C:0}, matchedSymptoms:[]};
+  const votes = {A:0, B:0, C:0};
+  const matched = [];
+  (selectedSymptoms||[]).forEach(sym=>{
+    const s = String(sym||'').trim();
+    if(!s) return;
+    for(const kw in rule.symptomMap){
+      if(s === kw || s.includes(kw) || kw.includes(s)){
+        const g = rule.symptomMap[kw];
+        if(votes[g] !== undefined) votes[g]++;
+        matched.push({symptom:s, prefer:g, keyword:kw});
+        break;
+      }
+    }
+  });
+  let preferred = null;
+  const max = Math.max(votes.A, votes.B, votes.C);
+  if(max > 0){
+    const winners = [];
+    if(votes.A === max) winners.push('A');
+    if(votes.B === max) winners.push('B');
+    if(votes.C === max) winners.push('C');
+    if(winners.length === 1) preferred = winners[0];
+  }
+  return {preferred, votes, matchedSymptoms:matched};
+}
+
 /* ============ 用药引擎 ============ */
 function checkIncompatibility(herbList){
   const conflicts=[];
@@ -2885,10 +3838,9 @@ function inferFormulaForm(formulaName, formulaObj){
     [/贴$/, '贴剂'], [/敷$/, '敷剂'], [/茶$/, '茶剂'],
     [/锭$/, '锭剂'], [/片$/, '片剂']
   ];
-    for(let i=0;i<formPatterns.length;i++){
+  for(let i=0;i<formPatterns.length;i++){
     if(formPatterns[i][0].test(name)) return formPatterns[i][1];
   }
-  /* ★ 增强：方名带"加减/加味/化裁"等后缀时，剥离后再试一次 */
   const stripped = name.replace(/(加减|加味|化裁|加|去)$/,'').trim();
   if(stripped && stripped !== name){
     for(let i=0;i<formPatterns.length;i++){
@@ -3200,25 +4152,23 @@ function renderMedicationAdvice(classicResults,fuzzyResults,duplicateHerbs,sympt
           html+='<button class="btn-select-all-formula" onclick="selectAllFormulaHerbs(this)" title="一键选中本方的全部药物">🔘 全选本方</button>';
         }
         html+='</div>';
-                if(f.herbs.length>0){
+        if(f.herbs.length>0){
           const formulaName = f.name || '（未命名方）';
           const herbHtml=f.herbs.map(function(h){
             const _formType = formType || '汤剂';
             const uid = (h.name||'')+'|'+_formType+'|'+(h.dosage||'')+'|'+formulaName;
-            /* 本元素是否被选中：name+剂型+formulaName 全部匹配 */
             const isSel=selectedHerbs.some(function(x){
               if(x.name!==h.name) return false;
               if(normalizeFormType(x.formType)!==normalizeFormType(_formType)) return false;
               return (x.formulaName||'')===formulaName;
             });
-            /* 同名同剂型但来自其他方剂：灰显（可点击切换） */
             const sameNameOtherFormula = !isSel && selectedHerbs.some(function(x){
               if(x.name!==h.name) return false;
               if(normalizeFormType(x.formType)!==normalizeFormType(_formType)) return false;
               return (x.formulaName||'')!==formulaName;
             });
             const cls='herb-selectable '+(isSel?'selected':(sameNameOtherFormula?'herb-muted':''));
-            return '<span class="'+cls+'" data-uid="'+esc(uid)+'" data-name="'+esc(h.name)+'" data-dosage="'+esc(h.dosage)+'" data-category="'+esc(h.role||'其他')+'" data-form-type="'+esc(_formType)+'" data-formula="'+esc(formulaName)+'" data-source="formula">'+esc(h.name)+(h.dosage?' '+esc(h.dosage):'')+'</span>';
+            return '<span class="'+cls+'" data-uid="'+esc(uid)+'" data-name="'+esc(h.name)+'" data-dosage="'+esc(h.dosage)+'" data-category="'+esc(h.role||'其他')+'" data-form-type="'+esc(_formType)+'" data-formula="'+esc(formulaName)+'" data-source="formula">'+esc(h.name)+(h.dosage?' '+esc(h.dosage):'')+'</span>' + getDoseHintHTML(h.name);
           }).join(' ');
           html+='<div style="margin-top:4px;font-size:13px;line-height:2;">'+herbHtml+'</div>';
         }
@@ -3253,13 +4203,99 @@ function renderMedicationAdvice(classicResults,fuzzyResults,duplicateHerbs,sympt
           return normalizeFormType(x.formType)===_formType;
         });
         const cls='herb-selectable herb-candidate '+(isSel?'selected':(sameNameOtherFormula?'herb-muted':''));
-        html+='<span class="'+cls+'" data-uid="'+esc(uid)+'" data-name="'+esc(name)+'" data-dosage="'+esc(dosageText)+'" data-category="候选" data-form-type="'+esc(_formType)+'" data-formula="'+esc(candidateFormulaName)+'" data-source="candidate">'+esc(name)+(dosageText?' '+esc(dosageText):'')+'</span> ';
+        html+='<span class="'+cls+'" data-uid="'+esc(uid)+'" data-name="'+esc(name)+'" data-dosage="'+esc(dosageText)+'" data-category="候选" data-form-type="'+esc(_formType)+'" data-formula="'+esc(candidateFormulaName)+'" data-source="candidate">'+esc(name)+(dosageText?' '+esc(dosageText):'')+'</span>' + getDoseHintHTML(name) + ' ';
       });
       html+='</div></div>';
     });
     html+='</div>';
   }
-  html+='<div style="margin-top:10px;color:#95a5a6;font-size:12px;border-top:1px solid #f0f4f8;padding-top:6px;">⚠️ 本建议仅供临床参考，具体用药请咨询专业中医师。</div>';
+    /* ★ 功效相近药物优选提醒 */
+  (function(){
+    const allCandidateNames = [];
+    (classicResults||[]).forEach(r=>{
+      (r.formulas||[]).forEach(f=>{
+        (f.herbs||[]).forEach(h=>{
+          const n = (h.name||'').trim();
+          if(n && allCandidateNames.indexOf(n) < 0) allCandidateNames.push(n);
+        });
+      });
+    });
+    (fuzzyResults||[]).forEach(r=>{
+      (r.candidateHerbs||[]).forEach(h=>{
+        const n = ((h['品名']||h['药名'])||'').trim();
+        if(n && allCandidateNames.indexOf(n) < 0) allCandidateNames.push(n);
+      });
+    });
+    /* 也把用户已选药物纳入，避免错失已加入的药对 */
+    (selectedHerbs||[]).forEach(h=>{
+      const n = (h.name||'').trim();
+      if(n && allCandidateNames.indexOf(n) < 0) allCandidateNames.push(n);
+    });
+
+    const diffHits = detectHerbDifferentiation(allCandidateNames);
+    if(diffHits.length === 0) return;
+
+    const selectedSyms = getSelectedSymptoms();
+
+    html += '<div class="medication-advice-box" style="border-color:#d97706;background:#fffbeb;margin-top:12px;">';
+    html += '<div class="advice-title" style="color:#92400e;">⚠️ 功效相近药物 · 鉴别优选提醒 <span style="font-size:12px;font-weight:400;color:#a16207;">（共 '+diffHits.length+' 组）</span></div>';
+
+    diffHits.forEach(rule=>{
+      const decision = decidePreferredGroup(rule, selectedSyms);
+      const groupList = [];
+      if(rule.matchedA) groupList.push({key:'A', name:rule.matchedA, unique:rule.uniqueA, indication:rule.indicationA});
+      if(rule.matchedB) groupList.push({key:'B', name:rule.matchedB, unique:rule.uniqueB, indication:rule.indicationB});
+      if(rule.matchedC) groupList.push({key:'C', name:rule.matchedC, unique:rule.uniqueC, indication:rule.indicationC});
+
+      html += '<div class="diff-card">';
+      html += '<div class="diff-title">◈ ' + groupList.map(g=>esc(g.name)).join(' 与 ') + ' <span style="font-weight:400;font-size:12px;color:#a16207;">功效相近，请鉴别选用</span></div>';
+
+      if(rule.shared && rule.shared.length){
+        html += '<div class="diff-shared">✅ <strong>共有功效：</strong>'+esc(rule.shared.join('、'))+'</div>';
+      }
+
+      html += '<table class="diff-table"><thead><tr>';
+      html += '<th style="width:16%;">药物</th>';
+      html += '<th style="width:42%;">独有功效</th>';
+      html += '<th>适用证</th>';
+      html += '</tr></thead><tbody>';
+
+      groupList.forEach(g=>{
+        const isPreferred = (decision.preferred === g.key);
+        html += '<tr class="'+(isPreferred?'diff-pref':'')+'">';
+        html += '<td style="font-weight:700;">'+esc(g.name);
+        if(isPreferred) html += ' <span class="diff-badge-pref">推荐</span>';
+        html += '</td>';
+        html += '<td>'+esc((g.unique||[]).join('、')||'—')+'</td>';
+        html += '<td>'+esc((g.indication||[]).join('、')||'—')+'</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+
+            if(decision.preferred){
+        const chosen = groupList.find(g=>g.key===decision.preferred);
+        if(chosen){
+          const symHits = decision.matchedSymptoms.map(x=>'<span class="diff-sym">'+esc(x.symptom)+'</span>').join('');
+          html += '<div class="diff-conclusion">📌 <strong>根据当前症状 '+symHits+' → 建议优先选 <span style="font-size:14px;">'+esc(chosen.name)+'</span></strong></div>';
+        }else{
+          html += '<div class="diff-conclusion-soft">📌 症状更倾向 <strong>'+esc(decision.preferred)+'</strong> 方，但候选药物中未出现该药，请结合辨证自行补充。</div>';
+        }
+      }else{
+        html += '<div class="diff-conclusion-soft">📌 未检测到明确的鉴别症状，请结合辨证、体质与其他兼证自行选择。</div>';
+      }
+
+      if(rule.note){
+        html += '<div class="diff-note">💡 '+esc(rule.note)+'</div>';
+      }
+
+      html += '</div>';
+    });
+
+    html += '</div>';
+  })();
+
+  html+='<div style="margin-top:10px;color:#95a5a6;font-size:12px;border-top:1px solid #f0f4f8;padding-top:6px;">⚠️ 本建议仅供临床参考，具体用药请咨询专业中医师。徽章说明：💡剂量提示 ⚖剂量差异 ⚠注意风险 🚫禁用剂量，点击徽章可查看完整剂量表。鉴别卡片会按症状自动优选。</div>';
+
   container.innerHTML=html;
   container.querySelectorAll('.herb-selectable').forEach(function(el){
     el.addEventListener('click',function(e){
@@ -3269,7 +4305,7 @@ function renderMedicationAdvice(classicResults,fuzzyResults,duplicateHerbs,sympt
       const category=this.dataset.category||'其他';
       const formType=normalizeFormType(this.dataset.formType||'汤剂');
       const uid=name+'|'+formType;
-          if(!name){ showToast('⚠️ 该药物无名称，无法加入'); return; }
+      if(!name){ showToast('⚠️ 该药物无名称，无法加入'); return; }
       const src = this.dataset.source || (category==='候选' ? 'candidate' : 'formula');
       const formulaName = this.dataset.formula || '';
       const isCurrentlySelected=selectedHerbs.some(function(it){
@@ -3278,7 +4314,6 @@ function renderMedicationAdvice(classicResults,fuzzyResults,duplicateHerbs,sympt
         return (it.formulaName||'')===formulaName;
       });
       if(isCurrentlySelected){
-        /* 已选中本条 → 移除 */
         selectedHerbs=selectedHerbs.filter(function(it){
           if(it.name!==name) return true;
           if(normalizeFormType(it.formType)!==formType) return true;
@@ -3286,7 +4321,6 @@ function renderMedicationAdvice(classicResults,fuzzyResults,duplicateHerbs,sympt
         });
         showToast('➖ 已移除：'+name+(dosage?' '+dosage:'')+' ['+formType+']');
       }else{
-        /* 同 name+formType 的旧记录（来自其他方剂）先移除，再新增 → 实现"切换" */
         const hadOther = selectedHerbs.some(function(it){
           return it.name===name && normalizeFormType(it.formType)===formType;
         });
@@ -3314,10 +4348,8 @@ function selectAllFormulaHerbs(btn){
   const herbEls = Array.from(box.querySelectorAll('.herb-selectable'));
   if(!herbEls.length){ showToast('ℹ️ 本方无药物可选'); return; }
 
-  /* 本方方剂名（同一方内的药材共享同一个 data-formula） */
   const formulaName = herbEls[0]?.dataset.formula || '';
 
-  /* 本方是否已全部选中 */
   const allSelected = herbEls.every(function(el){
     const name = (el.dataset.name||'').trim();
     if(!name) return true;
@@ -3330,7 +4362,6 @@ function selectAllFormulaHerbs(btn){
   });
 
   if(allSelected){
-    /* 取消本方全部选中 */
     const keysToRemove = new Set();
     herbEls.forEach(function(el){
       const name = (el.dataset.name||'').trim();
@@ -3361,7 +4392,6 @@ function selectAllFormulaHerbs(btn){
     const fn = el.dataset.formula || '';
     const uid = name+'|'+formType+'|'+dosage+'|'+fn;
 
-    /* 本方的这味药已选中 → 跳过 */
     const isSameSelected = selectedHerbs.some(function(it){
       if(it.name!==name) return false;
       if(normalizeFormType(it.formType)!==formType) return false;
@@ -3369,14 +4399,12 @@ function selectAllFormulaHerbs(btn){
     });
     if(isSameSelected) return;
 
-    /* 同名同剂型但来自其他方剂 → 会被替换 */
     const hasSameNameSameForm = selectedHerbs.some(function(it){
       if(it.name!==name) return false;
       return normalizeFormType(it.formType)===formType;
     });
     if(hasSameNameSameForm) replaced++;
 
-    /* 先移除同 name+formType 的旧记录 */
     selectedHerbs = selectedHerbs.filter(function(it){
       if(it.name!==name) return true;
       if(normalizeFormType(it.formType)!==formType) return true;
@@ -3466,29 +4494,23 @@ function refreshHerbSelectableStates(container){
     const formType=normalizeFormType(el.dataset.formType||'汤剂');
     const formulaName=el.dataset.formula||'';
     if(!name) return;
-
-    /* 选中判定：名称 + 剂型 + 方剂名 三者全部一致 */
     const isSel=selectedHerbs.some(function(it){
       if(it.name!==name) return false;
       if(normalizeFormType(it.formType)!==formType) return false;
       return (it.formulaName||'')===formulaName;
     });
-
-    /* 同名同剂型但来自其他方剂 → 灰显提示（仍可点击切换） */
     const sameNameOtherFormula = !isSel && selectedHerbs.some(function(it){
       if(it.name!==name) return false;
       if(normalizeFormType(it.formType)!==formType) return false;
       return (it.formulaName||'')!==formulaName;
     });
-
     el.classList.toggle('selected', isSel);
     el.classList.toggle('herb-muted', sameNameOtherFormula);
   });
 }
 
-/* ============ 诊疗单（★按剂型分组，不同剂型同名药物独立处理） ============ */
+/* ============ 诊疗单 ============ */
 function buildPrescriptionFormGroups(){
-  /* 返回 { formOrder:[剂型...], groups:{ 剂型: [{name,dosage,category,formType,uid}] } } */
   const formOrder = [];
   const groups = {};
   (selectedHerbs||[]).forEach(i => {
@@ -3496,7 +4518,7 @@ function buildPrescriptionFormGroups(){
     const name = String(i.name).trim();
     const formType = normalizeFormType(i.formType);
     if(!groups[formType]){
-      groups[formType] = new Map();  // 同一剂型内同名药物合并（保留首个剂量）
+      groups[formType] = new Map();
       formOrder.push(formType);
     }
     if(!groups[formType].has(name)){
@@ -3509,7 +4531,6 @@ function buildPrescriptionFormGroups(){
       });
     }
   });
-  /* 排序：剂型按"汤剂、煎剂、颗粒剂、散剂、丸剂、膏剂、丹剂、口服液、胶囊剂、酒剂、茶剂、其他"优先 */
   const orderPriority = {'汤剂':0,'煎剂':1,'颗粒剂':2,'散剂':3,'丸剂':4,'膏剂':5,'丹剂':6,'口服液':7,'胶囊剂':8,'糖浆剂':9,'酒剂':10,'茶剂':11,'洗剂':90,'敷剂':91,'贴剂':92,'栓剂':93};
   formOrder.sort((a,b)=>{
     const pa = orderPriority[a]!==undefined?orderPriority[a]:50;
@@ -3522,13 +4543,10 @@ function buildPrescriptionFormGroups(){
   });
   return {formOrder, groups: result};
 }
-/* ★ 辅助函数1：判断某剂型是否为需要煎煮的剂型（只有汤剂/煎剂才涉及先煎后下） */
 function isDecoctionForm(formType){
   const ft = normalizeFormType(formType);
   return ft === '汤剂' || ft === '煎剂';
 }
-
-/* ★ 辅助函数2：从剂型分组中提取出"汤剂/煎剂"下的全部药名（用于煎服方法提示） */
 function getDecoctionHerbNames(fg){
   const names = [];
   (fg.formOrder || []).forEach(ft => {
@@ -3592,11 +4610,9 @@ function buildPrescriptionHTML(forPrint){
     '</div>'
   ) : '';
 
-  /* 只收集汤剂/煎剂的药材，用于煎服方法提示；其他剂型不参与煎法汇总 */
-const allHerbNames = getDecoctionHerbNames(fg);
-const formTypesForTips = fg.formOrder.slice();
-
-const decoctionHtml = buildDecoctionNotesHTML(allHerbNames, formTypesForTips);
+  const allHerbNames = getDecoctionHerbNames(fg);
+  const formTypesForTips = fg.formOrder.slice();
+  const decoctionHtml = buildDecoctionNotesHTML(allHerbNames, formTypesForTips);
   return headerHtml +
     '<div class="rx-section"><h3 style="border-bottom-color:#4a90d9;">🧑‍⚕️ 患者信息</h3><div>'+pl+'</div></div>'+
     '<div class="rx-section"><h3 style="border-bottom-color:#4a90d9;">📝 主诉</h3><div>'+esc(chief)+'</div></div>'+
@@ -3672,18 +4688,17 @@ function savePrescriptionTXT(){
   const pulse=getPulseString()||'无';
   const conf=formatConfirmedPatterns();
   const fg = buildPrescriptionFormGroups();
-let drugLines = '';
-fg.formOrder.forEach(ft => {
-  drugLines += '【'+ft+'】\n';
-  const isDecoct = isDecoctionForm(ft);
-  fg.groups[ft].forEach(it => {
-    const t = isDecoct ? getHerbDecoctionType(it.name) : '';
-    drugLines += '  '+it.name+' '+(it.dosage||'')+(t?'（'+t+'）':'')+'\n';
+  let drugLines = '';
+  fg.formOrder.forEach(ft => {
+    drugLines += '【'+ft+'】\n';
+    const isDecoct = isDecoctionForm(ft);
+    fg.groups[ft].forEach(it => {
+      const t = isDecoct ? getHerbDecoctionType(it.name) : '';
+      drugLines += '  '+it.name+' '+(it.dosage||'')+(t?'（'+t+'）':'')+'\n';
+    });
   });
-});
-/* 只汇总汤剂/煎剂的药材 */
-const allHerbNames = getDecoctionHerbNames(fg);
-const tips=getDecoctionTipsForList(allHerbNames);
+  const allHerbNames = getDecoctionHerbNames(fg);
+  const tips=getDecoctionTipsForList(allHerbNames);
   let tipTxt='';
   HERB_DECOCTION_RULES.forEach(function(r){
     const arr=tips[r.type]||[];
@@ -3823,7 +4838,6 @@ function loadPrescriptionHistoryByTs(ts){
   const b=document.getElementById('prescriptionBody');
   const pl='【姓名】'+esc(r.patientName||'—')+' 【性别】'+esc((r.patientInfo&&r.patientInfo.gender)||'—')+' 【年龄】'+esc((r.patientInfo&&r.patientInfo.age)||'—')+' 【ID】'+esc(r.patientId||'—');
   const hl='【既往史】'+esc(r.medicalHistory||'无')+' 【过敏史】'+esc(r.allergyHistory||'无')+' 【素食者】'+esc(r.vegetarian||'否');
-  /* 历史诊疗单同样按剂型分组 */
   let dh='';
   if(r.herbDetails&&r.herbDetails.length){
     const formOrder = [];
@@ -3837,14 +4851,14 @@ function loadPrescriptionHistoryByTs(ts){
     const orderPriority = {'汤剂':0,'煎剂':1,'颗粒剂':2,'散剂':3,'丸剂':4,'膏剂':5,'丹剂':6,'口服液':7,'胶囊剂':8,'糖浆剂':9,'酒剂':10,'茶剂':11};
     formOrder.sort((a,b)=>(orderPriority[a]!==undefined?orderPriority[a]:50)-(orderPriority[b]!==undefined?orderPriority[b]:50));
     const co={'君':1,'臣':2,'佐':3,'使':4,'其他':5,'候选':6};
-formOrder.forEach(ft=>{
-  const isDecoct = isDecoctionForm(ft);
-  const items = Array.from(groups[ft].values()).sort((a,b)=>(co[a.category]||99)-(co[b.category]||99));
-  dh += '<div class="rx-form-group-title">▸ '+esc(ft)+' <span class="rx-form-count">'+items.length+'味</span></div>';
-  dh += '<div class="prescription-drug-list">'+items.map(x=>{
-    const decoTag = isDecoct ? getDecoctionTagHTML(x.name) : '';
-    return '<span class="prescription-drug-item"><span class="drug-name">'+esc(x.name)+'</span> <span>'+esc(x.dosage||'')+'</span>'+decoTag+'</span>';
-  }).join('')+'</div>';
+    formOrder.forEach(ft=>{
+      const isDecoct = isDecoctionForm(ft);
+      const items = Array.from(groups[ft].values()).sort((a,b)=>(co[a.category]||99)-(co[b.category]||99));
+      dh += '<div class="rx-form-group-title">▸ '+esc(ft)+' <span class="rx-form-count">'+items.length+'味</span></div>';
+      dh += '<div class="prescription-drug-list">'+items.map(x=>{
+        const decoTag = isDecoct ? getDecoctionTagHTML(x.name) : '';
+        return '<span class="prescription-drug-item"><span class="drug-name">'+esc(x.name)+'</span> <span>'+esc(x.dosage||'')+'</span>'+decoTag+'</span>';
+      }).join('')+'</div>';
     });
   } else {
     dh = '<div style="color:#95a5a6;">无用药记录</div>';
@@ -3865,17 +4879,16 @@ formOrder.forEach(ft=>{
     '<div class="rx-section"><h3 style="border-bottom-color:#4a90d9;">📊 确诊病证</h3><div style="font-weight:600;color:#1e3a5a;">'+esc(r.patterns||'无')+'</div></div>'+
     '<div class="rx-section"><h3 style="border-bottom-color:#4a90d9;">💊 用药</h3>'+dh+'</div>'+
   (function(){
-  /* 只提取汤剂/煎剂的药材用于煎服方法提示 */
-  const names=[]; const forms=[];
-  (r.herbDetails||[]).forEach(function(x){
-    if(!x || !x.name) return;
-    const ft = normalizeFormType(x.formType);
-    if(!isDecoctionForm(ft)) return;   // ★ 非煎煮剂型直接跳过
-    if(!names.includes(x.name)) names.push(x.name);
-    if(!forms.includes(ft)) forms.push(ft);
-  });
-  return buildDecoctionNotesHTML(names, forms);
-})();
+    const names=[]; const forms=[];
+    (r.herbDetails||[]).forEach(function(x){
+      if(!x || !x.name) return;
+      const ft = normalizeFormType(x.formType);
+      if(!isDecoctionForm(ft)) return;
+      if(!names.includes(x.name)) names.push(x.name);
+      if(!forms.includes(ft)) forms.push(ft);
+    });
+    return buildDecoctionNotesHTML(names, forms);
+  })();
 }
 function deletePrescriptionHistoryByTs(ts){
   if(!confirm('确定删除此条历史记录？'))return;
@@ -4028,8 +5041,6 @@ function importCases(e){
       const d=JSON.parse(ev.result||ev.target.result);
       if(!Array.isArray(d))throw new Error('格式错误');
       localStorage.setItem('tcm_cases_pro',JSON.stringify(d));
-
-      /* ★ 关键修复：把每条病例里的 patient 同步到患者档案 */
       const arch = getPatientArchive();
       let added = 0, updated = 0, skipped = 0;
       d.forEach(function(item){
@@ -4046,11 +5057,8 @@ function importCases(e){
         }
       });
       savePatientArchive(arch);
-
       showToast('✅ 导入 '+d.length+' 条病例（患者新增 '+added+'，更新 '+updated+'）');
       updateStorageInfo();
-
-      /* 刷新患者搜索下拉 */
       try { renderPatientSuggestions(''); } catch(e){}
     }catch(err){
       showToast('❌ 导入失败：'+err.message);
@@ -4129,6 +5137,7 @@ const AI_SYSTEM_PROMPT = `【角色设定】
 2. 客观中正：不盲从原诊断，依据中医理法方药进行逻辑推演。
 3. 安全第一：重点关注用药安全性、毒副作用、配伍禁忌及特殊人群（如孕产妇、肝肾不全者）。
 4. 凡诊疗单中标注为"未填""信息缺失"的字段，必须当作"确实未知"处理，不得假设其正常。
+5. 用药明细附有【剂量差异】或【剂量警示】摘要，请务必据此判断当前剂量与目标功效是否匹配、是否存在超量风险。
 
 【输出要求】
 - 使用 Markdown 格式输出，层级清晰。
@@ -4148,21 +5157,21 @@ const AI_USER_TEMPLATE = `【诊疗单信息】
 二、理法方药一致性评估（病证与用药）
 1. 所选方剂（或自拟方）的总体治法，是否与诊断的证型吻合？
 2. 如果方剂是由多个经典方（如龙胆泻肝汤合银翘散）拼合或加减而成，请分析这种合方是否合理？是否有冗余或冲突？
-3. 是否考虑了脏腑表里关系、五行生克（如抑强扶弱、虚补母实泻子）以及气血津液关系？
+3. 是否考虑了脏腑表里关系、五行生克以及气血津液关系？
 
 三、药物配伍与用量评估（细节与安全）
 1. 君臣佐使：药味排列是否符合君臣佐使的配伍原则？是否有核心君药？
-2. 七情配伍：是否存在相须、相使、相畏、相杀？有无十八反、十九畏等配伍禁忌？（如无，请明确说明）。
-3. 药性平衡：全面评估方剂的寒热温凉。是否存在长时间或大剂量使用过于寒凉/温热药物的情况？是否注意了"保胃气"（如是否加入了顾护脾胃的药）？
-4. 剂量毒性与药害：单味药剂量是否在药典安全范围内？是否有特殊煎法（先煎、后下、包煎等）需要提醒？是否有毒性药？
+2. 七情配伍：是否存在相须、相使、相畏、相杀？有无十八反、十九畏等配伍禁忌？
+3. 药性平衡：全面评估方剂的寒热温凉。是否存在长时间或大剂量使用过于寒凉/温热药物的情况？
+4. 剂量毒性与药害：结合【剂量差异】【剂量警示】，逐一核对每味药的当前剂量是否与其目标功效匹配？是否有超量风险？是否有特殊煎法需要提醒？
 
 四、引经与靶向评估（精准施治）
-1. 方中是否有引经药？引经药是否精准针对了发病部位（如头面、上肢、下肢、某脏某腑）？
+1. 方中是否有引经药？引经药是否精准针对了发病部位？
 2. 相同功效的药物，所选药物是否针对了具体施治部位？是否有更优替换方案？
 
 五、三因制宜与整体考量
-1. 是否体现了因时、因地、因人制宜？（结合患者年龄、性别、体质、发病季节等）。
-2. 结合患者既往史（如脂肪肝），当前用药是否对基础病有不良影响，或能否兼顾基础病？
+1. 是否体现了因时、因地、因人制宜？
+2. 结合患者既往史，当前用药是否对基础病有不良影响，或能否兼顾基础病？
 
 六、综合结论与优化建议
 1. 总体评价：合理 / 基本合理但需微调 / 存在明显不合理之处。
@@ -4199,20 +5208,21 @@ function buildCaseTextForAI(){
   L.push('◆ 八、确诊病证（原诊断）');
   L.push(formatConfirmedPatterns() || '未填');
   L.push('');
-  L.push('◆ 九、用药明细');
+  L.push('◆ 九、用药明细（含剂量规则摘要）');
   const fg = buildPrescriptionFormGroups();
- if(fg.formOrder.length){
-  let cnt = 0;
-  fg.formOrder.forEach(ft=>{
-    L.push('【'+ft+'】');
-    const isDecoct = isDecoctionForm(ft);
-    fg.groups[ft].forEach(it=>{
-      const t = isDecoct ? getHerbDecoctionType(it.name) : '';
-      L.push('· '+it.name+'　'+(it.dosage||'剂量未填')+(t?'（'+t+'）':'')+'　['+(it.category||'未标注')+']');
-      cnt++;
+  if(fg.formOrder.length){
+    let cnt = 0;
+    fg.formOrder.forEach(ft=>{
+      L.push('【'+ft+'】');
+      const isDecoct = isDecoctionForm(ft);
+      fg.groups[ft].forEach(it=>{
+        const t = isDecoct ? getHerbDecoctionType(it.name) : '';
+        const doseBrief = getDoseRuleBrief(it.name);
+        L.push('· '+it.name+'　'+(it.dosage||'剂量未填')+(t?'（'+t+'）':'')+'　['+(it.category||'未标注')+']'+(doseBrief?'　｜ '+doseBrief:''));
+        cnt++;
+      });
     });
-  });
-  L.push('（共 '+cnt+' 味，按剂型分组）');
+    L.push('（共 '+cnt+' 味，按剂型分组）');
   } else {
     L.push('未选择药物（信息缺失）');
   }
@@ -4224,6 +5234,32 @@ function buildCaseTextForAI(){
     });
     L.push('');
   }
+  /* 附鉴别优选提示，供 AI 参考 */
+  try{
+    const allNames = [];
+    (selectedHerbs||[]).forEach(h=>{ if(h && h.name && allNames.indexOf(h.name)<0) allNames.push(h.name); });
+    const diffHits = detectHerbDifferentiation(allNames);
+    if(diffHits.length){
+      L.push('');
+      L.push('◆ 附：功效相近药物鉴别提示（系统自动匹配）');
+      diffHits.forEach(rule=>{
+        const decision = decidePreferredGroup(rule, getSelectedSymptoms());
+        const groups = [];
+        if(rule.matchedA) groups.push(rule.matchedA);
+        if(rule.matchedB) groups.push(rule.matchedB);
+        if(rule.matchedC) groups.push(rule.matchedC);
+        let line = '· '+groups.join(' vs ')+'（共有：'+(rule.shared||[]).join('、')+'）';
+        if(decision.preferred){
+          const preferredName = rule['matched'+decision.preferred];
+          if(preferredName){
+            line += ' → 结合症状建议优先：'+preferredName;
+          }
+        }
+        L.push(line);
+      });
+      L.push('');
+    }
+  }catch(e){ console.warn('[AI] 鉴别附加失败：', e.message); }
   L.push('（以上即为本次诊疗单的全部实录信息，未列出的项目均为"信息缺失"。）');
   return L.join('\n');
 }

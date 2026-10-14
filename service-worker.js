@@ -1,4 +1,4 @@
-const CACHE = 'tcm-pwa-v19.1';   // 原来是 v1 或 v2，v3
+const CACHE = 'tcm-pwa-v19.2';   // 原来是 v1 或 v2，v3
 const ASSETS = [
   './index.html',
   './manifest.json',

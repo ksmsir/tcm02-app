@@ -199,8 +199,11 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f4f8;padd
 .dropdown-menu{position:relative;display:inline-block}
 .dropdown-menu .dropdown-toggle{background:#e9eff6;color:#2a4058;border:none;padding:7px 22px;border-radius:30px;font-size:14px;font-weight:600;cursor:pointer}
 .dropdown-menu .dropdown-toggle:hover{background:#d5dfea}
-.dropdown-menu .dropdown-content{display:none;position:fixed;background:#fff;min-width:340px;max-height:75vh;overflow-y:auto;box-shadow:0 8px 16px rgba(0,0,0,0.15);border-radius:12px;padding:10px 12px;z-index:2147483647;border:1px solid #e6ecf3}
+.dropdown-menu .dropdown-content{display:none;position:fixed;background:#fff;min-width:340px;max-height:calc(100vh - 20px);overflow-y:auto;box-shadow:0 8px 16px rgba(0,0,0,0.15);border-radius:12px;padding:10px 12px;z-index:2147483647;border:1px solid #e6ecf3;box-sizing:border-box}
 .dropdown-menu .dropdown-content.show{display:block}
+.dropdown-menu .dropdown-content::-webkit-scrollbar{width:8px}
+.dropdown-menu .dropdown-content::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
+.dropdown-menu .dropdown-content::-webkit-scrollbar-thumb:hover{background:#94a3b8}
 .dropdown-menu .group-label{font-size:12px;font-weight:700;color:#7a8a9a;margin:8px 0 4px 4px;border-top:1px dashed #e6ecf3;padding-top:4px}
 .dropdown-menu .group-label:first-child{border-top:0;margin-top:0;padding-top:0}
 .dropdown-menu .menu-item{display:flex;gap:6px;padding:4px 6px;flex-wrap:wrap}
@@ -1156,7 +1159,7 @@ function rebuildAliasIndex(){
 
 const _normalizeCache = new Map();
 function normalizeTerm(term){
-  if(!_aliasIndexBuilt) rebuildAliasIndex();
+  if(!_aliasIndexBuilt || ALIAS_TO_STD.size === 0) rebuildAliasIndex();
   term = (term||'').trim();
   if(!term) return term;
   const cached = _normalizeCache.get(term);
@@ -1381,6 +1384,8 @@ function getStructuredSelectedSymptoms(){
 
 function matchStructured(patient, kb, mode){
   if (!patient || !kb) return false;
+
+  /* ★ label 完全一致直接判匹配（对所有模式生效） */
   const pl = patient.label || '';
   const kl = kb.label || '';
   if (pl && kl && pl === kl) return true;
@@ -1401,7 +1406,6 @@ function matchStructured(patient, kb, mode){
   }
   return true;
 }
-
 function stringsToStructured(arr){
   if (!Array.isArray(arr)) return [];
   return arr.map(function(lbl){ return lookupSymptomStructure(lbl); });
@@ -2119,6 +2123,9 @@ function importWeightTable(event){
           secondaryStruct: parseCompoundStructured(row.secondary),
           tongue: splitSyndromeSymptoms(row.tongue).map(function(v){return {type:'single',value:v};}),
           pulse: splitSyndromeSymptoms(row.pulse),
+          /* ★ 新增：舌诊、脉诊的结构化字段（用于辨证） */
+          tongueStruct: parseCompoundStructured(row.tongue),
+          pulseStruct:  parseCompoundStructured(row.pulse),
           formula: row.formula||'', method: row.treatment||'', source: row.source||'',
           weights:{primary:60,secondary:20,tongue:10,pulse:10}
         });
@@ -2881,18 +2888,71 @@ function toggleCollapsible(id, forceExpand){
 (function(){
   const toggle=document.getElementById('dataMenuToggle');const menu=document.getElementById('dataMenu');
   if(!toggle||!menu)return;
+
+  function positionMenu(){
+    const r = toggle.getBoundingClientRect();
+    /* 先显示以便测量真实高度（visibility:hidden 避免闪烁） */
+    menu.style.visibility = 'hidden';
+    menu.style.display = 'block';
+    menu.style.top = '0px';
+    menu.style.left = '0px';
+    const mw = menu.offsetWidth  || 340;
+    const mh = menu.offsetHeight || 460;
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 10;
+
+    /* 水平：优先按钮左侧对齐，右侧放不下就贴右边缘 */
+    let left = r.left - 100;
+    if(left + mw > vw - margin) left = vw - mw - margin;
+    if(left < margin) left = margin;
+
+    /* 垂直：优先按钮下方展开，下方空间不够就向上展开 */
+    const spaceBelow = vh - r.bottom - margin;
+    const spaceAbove = r.top - margin;
+    let top;
+    if(spaceBelow >= mh + 4){
+      top = r.bottom + 4;                          // 下方放得下 → 向下
+    }else if(spaceAbove >= mh + 4){
+      top = r.top - mh - 4;                        // 上方放得下 → 向上
+    }else{
+      top = margin;                                // 上下都不够 → 贴顶，让菜单自己滚动
+    }
+
+    /* 限制菜单最大高度，防止超出屏幕 */
+    const maxH = vh - top - margin;
+    if(maxH > 200){
+      menu.style.maxHeight = maxH + 'px';
+    }else{
+      menu.style.maxHeight = (vh - margin * 2) + 'px';
+      top = margin;
+    }
+
+    menu.style.top = top + 'px';
+    menu.style.left = left + 'px';
+    menu.style.display = '';
+    menu.style.visibility = '';
+  }
+
   toggle.addEventListener('click',function(e){
     e.stopPropagation();e.preventDefault();
     if(menu.classList.contains('show')){menu.classList.remove('show');return;}
-    const r=toggle.getBoundingClientRect();
-    let top=r.bottom+4,left=r.left-100;
-    if(top+460>window.innerHeight)top=Math.max(10,r.top-460);
-    if(left+340>window.innerWidth)left=Math.max(10,window.innerWidth-350);
-    if(left<10)left=10;
-    menu.style.top=top+'px';menu.style.left=left+'px';menu.classList.add('show');
+    positionMenu();
+    menu.classList.add('show');
   });
-  document.addEventListener('click',function(e){if(menu.classList.contains('show')&&!menu.contains(e.target)&&e.target!==toggle)menu.classList.remove('show');});
-  menu.querySelectorAll('button').forEach(btn=>{btn.addEventListener('click',function(){setTimeout(()=>menu.classList.remove('show'),200);});});
+
+  /* 窗口尺寸变化时，如果菜单正开着，重新定位 */
+  window.addEventListener('resize',function(){
+    if(menu.classList.contains('show')) positionMenu();
+  });
+
+  document.addEventListener('click',function(e){
+    if(menu.classList.contains('show')&&!menu.contains(e.target)&&e.target!==toggle)menu.classList.remove('show');
+  });
+  menu.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click',function(){setTimeout(()=>menu.classList.remove('show'),200);});
+  });
 })();
 
 /* ============ 病史/过敏史 ============ */
@@ -2926,6 +2986,20 @@ function getSecondaryStruct(item){
   v = stringsToStructured(item.secondary || []);
   _kbSecondaryCache.set(item, v);
   return v;
+}
+function getTongueStruct(item){
+  if(Array.isArray(item.tongueStruct) && item.tongueStruct.length) return item.tongueStruct;
+  if(!item._tongueStructCache){
+    item._tongueStructCache = stringsToStructured((item.tongue||[]).map(t => t.value || t));
+  }
+  return item._tongueStructCache;
+}
+function getPulseStruct(item){
+  if(Array.isArray(item.pulseStruct) && item.pulseStruct.length) return item.pulseStruct;
+  if(!item._pulseStructCache){
+    item._pulseStructCache = stringsToStructured(item.pulse || []);
+  }
+  return item._pulseStructCache;
 }
 function inferPatterns(symptoms){
   if(!Array.isArray(KNOWLEDGE_BASE) || KNOWLEDGE_BASE.length === 0) return [];
@@ -2970,6 +3044,28 @@ function inferPatterns(symptoms){
     }
   }
 
+  const tongueByParent  = new Map();
+  const pulseByParent   = new Map();
+
+  for(let idx=0; idx<N; idx++){
+    const item = KNOWLEDGE_BASE[idx];
+    const nt = getTongueStruct(item);
+    for(let ki=0; ki<nt.length; ki++){
+      const k = nt[ki];
+      const key = normalizeTerm(k.parent || '');
+      let arr = tongueByParent.get(key);
+      if(!arr){ arr = []; tongueByParent.set(key, arr); }
+      arr.push({idx: idx, ki: ki, k: k});
+    }
+    const npp = getPulseStruct(item);
+    for(let ki=0; ki<npp.length; ki++){
+      const k = npp[ki];
+      const key = normalizeTerm(k.parent || '');
+      let arr = pulseByParent.get(key);
+      if(!arr){ arr = []; pulseByParent.set(key, arr); }
+      arr.push({idx: idx, ki: ki, k: k});
+    }
+  }
   const matchedPSets = new Map();
   const matchedSSets = new Map();
 
@@ -3002,6 +3098,38 @@ function inferPatterns(symptoms){
     }
   }
 
+  /* ★ 舌诊、脉诊匹配 */
+  const matchedTSets = new Map();   // tongue
+  const matchedPuSets = new Map();  // pulse
+
+  for(let i=0;i<patientStruct.length;i++){
+    const p = patientStruct[i];
+    const key = normalizeTerm(p.parent || '');
+
+    const candT = tongueByParent.get(key);
+    if(candT){
+      for(let j=0;j<candT.length;j++){
+        const e = candT[j];
+        if(matchStructured(p, e.k, mode)){
+          let s = matchedTSets.get(e.idx);
+          if(!s){ s = new Set(); matchedTSets.set(e.idx, s); }
+          s.add(e.ki);
+        }
+      }
+    }
+    const candPu = pulseByParent.get(key);
+    if(candPu){
+      for(let j=0;j<candPu.length;j++){
+        const e = candPu[j];
+        if(matchStructured(p, e.k, mode)){
+          let s = matchedPuSets.get(e.idx);
+          if(!s){ s = new Set(); matchedPuSets.set(e.idx, s); }
+          s.add(e.ki);
+        }
+      }
+    }
+  }
+
   const results = [];
   for(let idx=0; idx<N; idx++){
     const item = KNOWLEDGE_BASE[idx];
@@ -3024,18 +3152,51 @@ function inferPatterns(symptoms){
       if(sSet && sSet.has(i)){ sMatch++; matchedS.push(lbl); }
     }
 
-    const pRate = np.length > 0 ? pMatch / np.length : 0;
-    const sRate = ns.length > 0 ? sMatch / ns.length : 0;
+    /* ★ 舌诊匹配统计 */
+    const nt = getTongueStruct(item);
+    const tSet = matchedTSets.get(idx);
+    let tMatch = 0;
+    const matchedT = [], totalT = [];
+    for(let i=0;i<nt.length;i++){
+      const lbl = nt[i].label || nt[i].parent || '';
+      totalT.push(lbl);
+      if(tSet && tSet.has(i)){ tMatch++; matchedT.push(lbl); }
+    }
+
+    /* ★ 脉诊匹配统计 */
+    const npp = getPulseStruct(item);
+    const puSet = matchedPuSets.get(idx);
+    let puMatch = 0;
+    const matchedPu = [], totalPu = [];
+    for(let i=0;i<npp.length;i++){
+      const lbl = npp[i].label || npp[i].parent || '';
+      totalPu.push(lbl);
+      if(puSet && puSet.has(i)){ puMatch++; matchedPu.push(lbl); }
+    }
+
+    const pRate  = np.length   > 0 ? pMatch   / np.length   : 0;
+    const sRate  = ns.length   > 0 ? sMatch   / ns.length   : 0;
+    const tRate  = nt.length   > 0 ? tMatch   / nt.length   : 0;
+    const puRate = npp.length  > 0 ? puMatch  / npp.length  : 0;
+
+    /* 四项加权：主证60 + 次证20 + 舌诊10 + 脉诊10 */
     const w = item.weights || {primary:60, secondary:20, tongue:10, pulse:10};
-    let conf = pRate * (w.primary/(w.primary+w.secondary)) + sRate * (w.secondary/(w.primary+w.secondary));
+    const wSum = (w.primary||60) + (w.secondary||20) + (w.tongue||10) + (w.pulse||10);
+    let conf = 
+      pRate  * ((w.primary  ||60) / wSum) +
+      sRate  * ((w.secondary||20) / wSum) +
+      tRate  * ((w.tongue   ||10) / wSum) +
+      puRate * ((w.pulse    ||10) / wSum);
     if(pRate < 0.2) conf *= 0.4;
-    if(conf > 0.05){
+        if(conf > 0.05){
       results.push({
         disease: item.disease, pattern: item.pattern,
         confidence: Math.min(conf, 1.0),
-        pRate: pRate, sRate: sRate,
+        pRate: pRate, sRate: sRate, tRate: tRate, puRate: puRate,
         matchedP: matchedP, totalP: totalP,
         matchedS: matchedS, totalS: totalS,
+        matchedT: matchedT, totalT: totalT,
+        matchedPu: matchedPu, totalPu: totalPu,
         historyBoost: 1.0
       });
     }
@@ -3092,6 +3253,8 @@ function displayResults(results){
     const sel=selectedPatterns.has(_key);
     const boost=(r.historyBoost&&r.historyBoost>1)?'<span style="font-size:11px;color:#8a6d3b;background:#fef5e7;padding:1px 6px;border-radius:8px;margin-left:6px;">病史加权×'+r.historyBoost.toFixed(2)+'</span>':'';
     function renderSymptomPills(totalArr, matchedArr){
+      if(!Array.isArray(totalArr)) return '';
+      if(!Array.isArray(matchedArr)) matchedArr = [];
       return totalArr.map(function(sym){
         const isM=matchedArr.indexOf(sym)>=0;
         return '<span class="sym-pill '+(isM?'matched':'unmatched')+'" title="'+(isM?'已选匹配':'未选（可能漏填或该证型不含此症状）')+'">'+esc(sym)+'</span>';
@@ -3099,16 +3262,30 @@ function displayResults(results){
     }
     const primaryPills=renderSymptomPills(r.totalP, r.matchedP);
     const secondaryPills=renderSymptomPills(r.totalS, r.matchedS);
+    const tonguePills = renderSymptomPills(r.totalT || [], r.matchedT || []);
+    const pulsePills  = renderSymptomPills(r.totalPu || [], r.matchedPu || []);
     html+='<div class="result-item '+lv+(sel?' selected':'')+'" data-pattern="'+esc(r.pattern)+'" data-disease="'+esc(r.disease||'')+'">'+
       '<div class="result-header"><div class="result-name">'+(r.disease?'<span style="color:#27ae60;">'+esc(r.disease)+'</span><span style="color:#95a5a6;margin:0 6px;">·</span>':'')+'<span>'+esc(r.pattern)+'</span>'+boost+'<span class="select-badge" style="display:'+(sel?'inline-block':'none')+';">✓ 已确认</span></div>'+
       '<div class="confidence '+lv+'">'+conf+'% <span style="font-size:13px;font-weight:400;color:#5b748b;">'+lb+'</span></div></div>'+
       '<div class="progress-bar"><div class="progress-fill '+lv+'" style="width:'+conf+'%;"></div></div>'+
-      '<div class="detail-grid"><div><span class="label">主证：</span><span class="match">'+r.matchedP.length+'/'+r.totalP.length+'</span></div>'+
-      '<div><span class="label">次证：</span><span class="match">'+r.matchedS.length+'/'+r.totalS.length+'</span></div></div>'+
+      '<div class="detail-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;">'+
+        '<div><span class="label">主证：</span><span class="match">'+r.matchedP.length+'/'+r.totalP.length+'</span></div>'+
+        '<div><span class="label">次证：</span><span class="match">'+r.matchedS.length+'/'+r.totalS.length+'</span></div>'+
+        '<div><span class="label">舌诊：</span><span class="match">'+(r.matchedT?r.matchedT.length:0)+'/'+(r.totalT?r.totalT.length:0)+'</span></div>'+
+        '<div><span class="label">脉诊：</span><span class="match">'+(r.matchedPu?r.matchedPu.length:0)+'/'+(r.totalPu?r.totalPu.length:0)+'</span></div>'+
+      '</div>'+
       '<div style="margin-top:6px;font-size:12.5px;color:#5b748b;"><strong style="color:#166534;">主证</strong>（绿=已选 / 灰=未选）：</div>'+
       '<div class="symptom-compare">'+(primaryPills||'<span style="color:#95a5a6;">（无）</span>')+'</div>'+
       '<div style="margin-top:4px;font-size:12.5px;color:#5b748b;"><strong style="color:#166534;">次证</strong>（绿=已选 / 灰=未选）：</div>'+
       '<div class="symptom-compare">'+(secondaryPills||'<span style="color:#95a5a6;">（无）</span>')+'</div>'+
+      ((r.totalT && r.totalT.length) ? (
+        '<div style="margin-top:4px;font-size:12.5px;color:#6b21a8;"><strong style="color:#5b21b6;">👅 舌诊</strong>（绿=已选 / 灰=未选）：</div>'+
+        '<div class="symptom-compare">'+(tonguePills||'<span style="color:#95a5a6;">（无）</span>')+'</div>'
+      ) : '')+
+      ((r.totalPu && r.totalPu.length) ? (
+        '<div style="margin-top:4px;font-size:12.5px;color:#9a3412;"><strong style="color:#c2410c;">🌊 脉诊</strong>（绿=已选 / 灰=未选）：</div>'+
+        '<div class="symptom-compare">'+(pulsePills||'<span style="color:#95a5a6;">（无）</span>')+'</div>'
+      ) : '')+
       '</div>';
   });
   area.innerHTML=html;
@@ -3136,11 +3313,24 @@ function getMatchMode(){
 }
 function setMatchMode(m){
   if(['strict','normal','loose'].indexOf(m) < 0) return;
+
+  if(m === 'strict'){
+    const ok = confirm('严格模式要求症状与知识库逐字完全一致，会大幅降低命中率。确定要切换到严格模式吗？一般建议使用标准模式。');
+    if(!ok){
+      const sel = document.getElementById('matchModeSelect');
+      if(sel) sel.value = getMatchMode();
+      return;
+    }
+  }
+
   localStorage.setItem(MATCH_MODE_KEY, m);
+  try{ localStorage.setItem('tcm_match_mode_user_set', '1'); }catch(e){}
+
   if(typeof showToast === 'function'){
     const label = {strict:'严格模式（完全一致）', normal:'标准模式（允许1字差）', loose:'宽松模式（允许2字差）'}[m];
     showToast('🔍 匹配模式已切换为：' + label);
   }
+
   try{
     if(typeof CURRENT_RESULTS !== 'undefined' && CURRENT_RESULTS && CURRENT_RESULTS.length > 0){
       const syms = getSymptomsForDiagnosis();
@@ -3152,6 +3342,7 @@ function setMatchMode(m){
     }
   }catch(e){ console.warn('[match-mode] 重新辨证失败：', e); }
 }
+ 
 function updatePatternCountDisplay(){const el=document.getElementById('patternCountDisplay');if(el)el.textContent='激活 '+(selectedPatterns.size+activeHistoryPatterns.size)+' 个证型（当前 '+selectedPatterns.size+'，历史 '+activeHistoryPatterns.size+'）';}
 
 /* ============ 清空/存储 ============ */
@@ -3408,6 +3599,14 @@ function loadStoredData(){
   }catch(e){ HERB_DIFFERENTIATION_RULES = []; }
 }
 function init(){
+  /* ★ 防呆：若 localStorage 存在 strict 残留但用户从未主动切换过，视为调试遗留，归零为 normal */
+  try{
+    const _userSet = localStorage.getItem('tcm_match_mode_user_set');
+    if(localStorage.getItem('tcm_match_mode') === 'strict' && _userSet !== '1'){
+      console.warn('[match-mode] 检测到 strict 残留（非用户主动切换），已自动重置为 normal');
+      localStorage.setItem('tcm_match_mode', 'normal');
+    }
+  }catch(e){}
   try{
     const sel = document.getElementById('matchModeSelect');
     if(sel){
